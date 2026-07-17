@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val db = WorkoutDb.getDatabase(applicationContext)
+        val startTab = intent.getStringExtra("startTab") ?: "historial"
 
         setContent {
             MaterialTheme(
@@ -74,7 +75,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MobileAppScaffold(db)
+                    MobileAppScaffold(db, startTab)
                 }
             }
         }
@@ -82,8 +83,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MobileAppScaffold(db: WorkoutDb) {
-    var selectedTab by remember { mutableStateOf("historial") }
+fun MobileAppScaffold(db: WorkoutDb, startTab: String) {
+    var selectedTab by remember { mutableStateOf(startTab) }
     val sessions by db.workoutDao().getAllSessions().collectAsState(initial = emptyList())
     val allSets by db.workoutDao().getAllSets().collectAsState(initial = emptyList())
     val exercises by db.workoutDao().getDistinctExercises().collectAsState(initial = emptyList())
@@ -145,6 +146,19 @@ fun MobileAppScaffold(db: WorkoutDb) {
                         indicatorColor = Color(0xFF1E1E1E)
                     )
                 )
+                NavigationBarItem(
+                    selected = selectedTab == "ajustes",
+                    onClick = { selectedTab = "ajustes" },
+                    label = { Text("Ajustes") },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Ajustes") },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFF00E5FF),
+                        selectedTextColor = Color(0xFF00E5FF),
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray,
+                        indicatorColor = Color(0xFF1E1E1E)
+                    )
+                )
             }
         }
     ) { paddingValues ->
@@ -158,6 +172,7 @@ fun MobileAppScaffold(db: WorkoutDb) {
                 "evolucion" -> EvolucionTab(exercises, allSets)
                 "objetivos" -> ObjetivosTab(sessions)
                 "respaldo" -> RespaldoTab(db)
+                "ajustes" -> AjustesTab(LocalContext.current)
             }
         }
     }
@@ -879,6 +894,193 @@ fun ObjetivosTab(sessions: List<WorkoutSessionEntity>) {
                 }
             }
         }
+
+        // Calendario de Actividad
+        item {
+            var selectedCalendarDay by remember { mutableStateOf<Calendar?>(null) }
+            val today = remember { Calendar.getInstance() }
+            val daysInMonth = today.getActualMaximum(Calendar.DAY_OF_MONTH)
+            
+            // First day of month (Monday-first index 0 to 6)
+            val firstDayOfWeek = remember {
+                val tempCal = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, 1)
+                }
+                val day = tempCal.get(Calendar.DAY_OF_WEEK)
+                if (day == Calendar.SUNDAY) 6 else day - 2
+            }
+            
+            val dayNames = listOf("L", "M", "X", "J", "V", "S", "D")
+            val monthName = today.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es", "ES"))?.uppercase() ?: ""
+            val year = today.get(Calendar.YEAR)
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Calendario de Actividad",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = "$monthName $year",
+                        color = Color(0xFF00E5FF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Row of day names
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        dayNames.forEach { name ->
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(28.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Grid of days
+                    val totalCells = firstDayOfWeek + daysInMonth
+                    val rows = (totalCells + 6) / 7
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (r in 0 until rows) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                for (c in 0 until 7) {
+                                    val cellIndex = r * 7 + c
+                                    val dayNum = cellIndex - firstDayOfWeek + 1
+                                    
+                                    if (cellIndex < firstDayOfWeek || dayNum > daysInMonth) {
+                                        Spacer(modifier = Modifier.width(28.dp))
+                                    } else {
+                                        val hasTrained = sessions.any { s ->
+                                            val sCal = Calendar.getInstance().apply { timeInMillis = s.timestamp }
+                                            sCal.get(Calendar.DAY_OF_MONTH) == dayNum &&
+                                            sCal.get(Calendar.MONTH) == today.get(Calendar.MONTH) &&
+                                            sCal.get(Calendar.YEAR) == today.get(Calendar.YEAR)
+                                        }
+
+                                        val isSelected = selectedCalendarDay?.let { sel ->
+                                            sel.get(Calendar.DAY_OF_MONTH) == dayNum &&
+                                            sel.get(Calendar.MONTH) == today.get(Calendar.MONTH)
+                                        } ?: false
+
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .background(
+                                                    color = when {
+                                                        isSelected -> Color(0xFF00E5FF).copy(alpha = 0.3f)
+                                                        hasTrained -> Color(0xFF39FF14).copy(alpha = 0.15f)
+                                                        else -> Color.Transparent
+                                                    },
+                                                    shape = CircleShape
+                                                )
+                                                .clickable {
+                                                    val clickedCal = Calendar.getInstance().apply {
+                                                        set(Calendar.DAY_OF_MONTH, dayNum)
+                                                    }
+                                                    selectedCalendarDay = if (isSelected) null else clickedCal
+                                                }
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = when {
+                                                        isSelected -> Color(0xFF00E5FF)
+                                                        hasTrained -> Color(0xFF39FF14)
+                                                        else -> Color.Transparent
+                                                    },
+                                                    shape = CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "$dayNum",
+                                                color = when {
+                                                    isSelected -> Color(0xFF00E5FF)
+                                                    hasTrained -> Color(0xFF39FF14)
+                                                    else -> Color.White
+                                                },
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Detalles del día seleccionado
+            selectedCalendarDay?.let { selCal ->
+                val dayNum = selCal.get(Calendar.DAY_OF_MONTH)
+                val daySessions = sessions.filter { s ->
+                    val sCal = Calendar.getInstance().apply { timeInMillis = s.timestamp }
+                    sCal.get(Calendar.DAY_OF_MONTH) == dayNum &&
+                    sCal.get(Calendar.MONTH) == today.get(Calendar.MONTH)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1C)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Entrenamientos del día $dayNum",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (daySessions.isEmpty()) {
+                            Text("No registraste ningún entrenamiento este día.", color = Color.Gray, fontSize = 11.sp)
+                        } else {
+                            daySessions.forEach { s ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "${s.bodyPart.uppercase()} (${s.durationSeconds / 60}m)",
+                                        color = Color(0xFF00E5FF),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${s.totalKcal} kcal | HR recovery: ${s.heartRateRecoveryDrop} BPM",
+                                        color = Color.LightGray,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1235,17 +1437,332 @@ fun exportToGpxFile(context: Context, session: WorkoutSessionEntity): File? {
             """.trimIndent() + "\n")
         }
 
-        writer.write("""
-                </trkseg>
-              </trk>
-            </gpx>
-        """.trimIndent() + "\n")
-
         writer.flush()
         writer.close()
         return cacheFile
     } catch (e: Exception) {
         e.printStackTrace()
         return null
+    }
+}
+
+@Composable
+fun AjustesTab(context: android.content.Context) {
+    val prefs = remember { context.getSharedPreferences("user_profile_prefs", android.content.Context.MODE_PRIVATE) }
+    
+    var gender by remember { mutableStateOf(prefs.getString("gender", "macho") ?: "macho") }
+    var height by remember { mutableFloatStateOf(prefs.getFloat("height", 175f)) }
+    var weight by remember { mutableFloatStateOf(prefs.getFloat("weight", 70f)) }
+    var birthYear by remember { mutableStateOf(prefs.getInt("birthYear", 1995)) }
+    
+    val heightInt = height.toInt()
+    val weightInt = weight.toInt()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text(
+                text = "Perfil y Ajustes",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        // Sliders & Gender
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("Indicadores Biológicos", fontWeight = FontWeight.Bold, color = Color.White)
+                    
+                    // Gender
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Género", color = Color.Gray, fontSize = 13.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = gender == "macho",
+                                onClick = {
+                                    gender = "macho"
+                                    prefs.edit().putString("gender", "macho").apply()
+                                },
+                                label = { Text("Macho") }
+                            )
+                            FilterChip(
+                                selected = gender == "hembra",
+                                onClick = {
+                                    gender = "hembra"
+                                    prefs.edit().putString("gender", "hembra").apply()
+                                },
+                                label = { Text("Hembra") }
+                            )
+                        }
+                    }
+
+                    // Height
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Altura", color = Color.Gray, fontSize = 13.sp)
+                            Text("$heightInt cm", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                        }
+                        Slider(
+                            value = height,
+                            onValueChange = {
+                                height = it
+                                prefs.edit().putFloat("height", it).apply()
+                            },
+                            valueRange = 100f..230f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF00E5FF),
+                                activeTrackColor = Color(0xFF00E5FF)
+                            )
+                        )
+                    }
+
+                    // Weight
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Peso", color = Color.Gray, fontSize = 13.sp)
+                            Text("$weightInt kg", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                        }
+                        Slider(
+                            value = weight,
+                            onValueChange = {
+                                weight = it
+                                prefs.edit().putFloat("weight", it).apply()
+                            },
+                            valueRange = 35f..180f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF00E5FF),
+                                activeTrackColor = Color(0xFF00E5FF)
+                            )
+                        )
+                    }
+
+                    // Birth Year
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Año de Nacimiento", color = Color.Gray, fontSize = 13.sp)
+                            Text("$birthYear", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                        }
+                        Slider(
+                            value = birthYear.toFloat(),
+                            onValueChange = {
+                                birthYear = it.toInt()
+                                prefs.edit().putInt("birthYear", it.toInt()).apply()
+                            },
+                            valueRange = 1940f..2020f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF00E5FF),
+                                activeTrackColor = Color(0xFF00E5FF)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // BMI Card
+        item {
+            val heightM = height / 100f
+            val bmi = if (heightM > 0) weight / (heightM * heightM) else 0f
+            val (bmiText, bmiColor) = when {
+                bmi < 18.5f -> "Bajo Peso" to Color(0xFF00E5FF)
+                bmi < 24.9f -> "Normal" to Color(0xFF39FF14)
+                bmi < 29.9f -> "Sobrepeso" to Color(0xFFFFEB3B)
+                else -> "Obesidad" to Color(0xFFFF007F)
+            }
+            
+            // Ideal weight range (BMI 18.5 to 24.9)
+            val minIdealWeight = (18.5f * (heightM * heightM)).toInt()
+            val maxIdealWeight = (24.9f * (heightM * heightM)).toInt()
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Composición Corporal", fontWeight = FontWeight.Bold, color = Color.White)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Tu IMC", color = Color.Gray, fontSize = 13.sp)
+                        Text(String.format("%.1f (%s)", bmi, bmiText), color = bmiColor, fontWeight = FontWeight.Bold)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Peso Ideal Recomendado", color = Color.Gray, fontSize = 13.sp)
+                        Text("$minIdealWeight - $maxIdealWeight kg", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Card to add custom exercises
+        item {
+            var newExerciseName by remember { mutableStateOf("") }
+            var selectedPart by remember { mutableStateOf("brazo") }
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Añadir Ejercicio Customizado", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Añade nuevos ejercicios que aparecerán en el carrusel de tu reloj.", fontSize = 12.sp, color = Color.Gray)
+
+                    // Body Part Selection
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Grupo Muscular", color = Color.Gray, fontSize = 13.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            FilterChip(
+                                selected = selectedPart == "brazo",
+                                onClick = { selectedPart = "brazo" },
+                                label = { Text("Brazo", fontSize = 11.sp) }
+                            )
+                            FilterChip(
+                                selected = selectedPart == "pierna",
+                                onClick = { selectedPart = "pierna" },
+                                label = { Text("Pierna", fontSize = 11.sp) }
+                            )
+                            FilterChip(
+                                selected = selectedPart == "torso",
+                                onClick = { selectedPart = "torso" },
+                                label = { Text("Torso", fontSize = 11.sp) }
+                            )
+                        }
+                    }
+
+                    // Text Field for name
+                    OutlinedTextField(
+                        value = newExerciseName,
+                        onValueChange = { newExerciseName = it },
+                        label = { Text("Nombre del Ejercicio") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00E5FF),
+                            focusedLabelColor = Color(0xFF00E5FF),
+                            unfocusedBorderColor = Color.DarkGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Button(
+                        onClick = {
+                            if (newExerciseName.isNotBlank()) {
+                                val cleanName = newExerciseName.trim()
+                                val prefs = context.getSharedPreferences("custom_exercises_prefs", Context.MODE_PRIVATE)
+                                val currentSet = prefs.getStringSet(selectedPart, emptySet())?.toMutableSet() ?: mutableSetOf()
+                                currentSet.add(cleanName)
+                                prefs.edit().putStringSet(selectedPart, currentSet).apply()
+
+                                // Sync immediately to watch
+                                syncCustomExercisesToWatch(context)
+
+                                newExerciseName = ""
+                                Toast.makeText(context, "¡Ejercicio '$cleanName' añadido y sincronizado!", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Añadir al Reloj", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // GitHub updates check card
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Actualizaciones del Sistema", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("GymNemo comprueba actualizaciones en GitHub releases.", fontSize = 12.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    var updateStatus by remember { mutableStateOf("Buscar Actualización") }
+                    Button(
+                        onClick = {
+                            updateStatus = "Comprobando..."
+                            checkAppUpdate(context) { version, _ ->
+                                updateStatus = "¡Nueva versión v$version disponible!"
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray, contentColor = Color.White),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(updateStatus)
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun syncCustomExercisesToWatch(context: android.content.Context) {
+    try {
+        val prefs = context.getSharedPreferences("custom_exercises_prefs", android.content.Context.MODE_PRIVATE)
+        val brazoList = prefs.getStringSet("brazo", emptySet())?.toList() ?: emptyList()
+        val piernaList = prefs.getStringSet("pierna", emptySet())?.toList() ?: emptyList()
+        val torsoList = prefs.getStringSet("torso", emptySet())?.toList() ?: emptyList()
+
+        val dataClient = com.google.android.gms.wearable.Wearable.getDataClient(context)
+        val putDataMapReq = com.google.android.gms.wearable.PutDataMapRequest.create("/custom_exercises").apply {
+            dataMap.putStringArrayList("brazo", ArrayList(brazoList))
+            dataMap.putStringArrayList("pierna", ArrayList(piernaList))
+            dataMap.putStringArrayList("torso", ArrayList(torsoList))
+            dataMap.putLong("timestamp", System.currentTimeMillis())
+        }
+        val putDataReq = putDataMapReq.asPutDataRequest().setUrgent()
+        dataClient.putDataItem(putDataReq)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+fun checkAppUpdate(context: android.content.Context, onUpdateAvailable: (String, String) -> Unit) {
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        try {
+            val url = java.net.URL("https://api.github.com/repos/jmcaamanog/GymNemo/releases/latest")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connect()
+            if (connection.responseCode == 200) {
+                val text = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = org.json.JSONObject(text)
+                val remoteVersion = json.getString("tag_name").replace("v", "")
+                val assets = json.getJSONArray("assets")
+                val downloadUrl = if (assets.length() > 0) assets.getJSONObject(0).getString("browser_download_url") else ""
+                val localVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                if (remoteVersion != localVersion) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        onUpdateAvailable(remoteVersion, downloadUrl)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

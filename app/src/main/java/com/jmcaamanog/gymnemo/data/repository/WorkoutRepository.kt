@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class WorkoutRepository(
-    private val context: Context,
+    val context: Context,
     private val workoutDao: WorkoutDao,
     val preferencesRepository: UserPreferencesRepository
 ) {

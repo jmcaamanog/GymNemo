@@ -63,6 +63,14 @@ A continuación se detallan todas las mejoras tácticas, visuales y de rendimien
 | **2026-07-17 11:30** | Ola de Líquido en Hipoxia | **Animación** | Simulación Canvas de ola de agua celeste que inunda el reloj si el SpO2 baja de 92% y baja al recuperarse. |
 | **2026-07-17 11:30** | Rotación 3D de Iconos en Carrusel | **Animación** | Perspectiva cilíndrica tridimensional (rotationX) según inercia y distancia al centro del scroll en el reloj. |
 | **2026-07-17 11:30** | Anillos de Actividad Latientes | **Animación** | Pulso orgánico en los anillos del móvil sincronizado a la frecuencia cardíaca promedio de la semana. |
+| **2026-07-17 14:00** | Carrera con GPS & Altitud | **Funcionalidad** | Inicia rastreo de GPS en carrera exterior, calculando velocidad media y altitudes. |
+| **2026-07-17 14:00** | Calendario de Actividad Móvil | **UX / Funcionalidad** | Cuadrícula mensual interactiva con indicadores verdes de entrenamientos y desglose diario. |
+| **2026-07-17 14:00** | Splash Screen & WebView GIF | **Visual / UX** | Splash de 7s en reloj con logotipo y animación yo_animado.gif en WebView transparente. |
+| **2026-07-17 14:00** | Huevo de Pascua (7 Toques) | **Visual / Diversión** | Pantalla oculta en Ajustes con gif de fondo, Copyright y actualizador GitHub. |
+| **2026-07-17 14:00** | Pestaña de Ajustes e IMC | **UX / Funcionalidad** | Ajuste de variables biológicas, cálculo de IMC dinámico con color-coded y peso ideal. |
+| **2026-07-17 14:00** | Dictado de Ejercicios por Voz | **Funcionalidad** | Botón para añadir ejercicios personalizados en el reloj usando RecognizerIntent. |
+| **2026-07-17 14:00** | Widget Companion Móvil | **UX** | Widget de 3 accesos directos (Historial, Objetivos, Ajustes) de escritorio. |
+| **2026-07-17 14:45** | Añadir Ejercicios desde Móvil | **Funcionalidad** | Formulario en Ajustes del móvil para añadir y sincronizar automáticamente por Bluetooth ejercicios custom al reloj. |
 
 ---
 

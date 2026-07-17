@@ -66,6 +66,10 @@ import com.jmcaamanog.gymnemo.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
+import android.content.pm.PackageManager
 
 class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvider {
     private var isAmbientMode by mutableStateOf(false)
@@ -75,6 +79,15 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
         
         // Attach Ambient Mode
         AmbientModeSupport.attach(this)
+
+        // Request GPS Location Permissions
+        val permissions = arrayOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(permissions, 100)
+        }
 
         val db = GymNemoDatabase.getDatabase(applicationContext)
         val prefRepository = UserPreferencesRepository(applicationContext)
@@ -108,12 +121,78 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
     val workoutViewModel: WorkoutViewModel = viewModel(factory = factory)
     val uiState by settingsViewModel.uiState.collectAsState()
 
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        val dataClient = com.google.android.gms.wearable.Wearable.getDataClient(context)
+        val dataListener = com.google.android.gms.wearable.DataClient.OnDataChangedListener { dataEvents ->
+            for (event in dataEvents) {
+                if (event.type == com.google.android.gms.wearable.DataEvent.TYPE_CHANGED) {
+                    val path = event.dataItem.uri.path
+                    if (path == "/custom_exercises") {
+                        val dataMap = com.google.android.gms.wearable.DataMapItem.fromDataItem(event.dataItem).dataMap
+                        val brazo = dataMap.getStringArrayList("brazo") ?: emptyList<String>()
+                        val pierna = dataMap.getStringArrayList("pierna") ?: emptyList<String>()
+                        val torso = dataMap.getStringArrayList("torso") ?: emptyList<String>()
+
+                        val prefs = context.getSharedPreferences("custom_exercises_prefs", android.content.Context.MODE_PRIVATE)
+                        prefs.edit().apply {
+                            putStringSet("brazo", brazo.toSet())
+                            putStringSet("pierna", pierna.toSet())
+                            putStringSet("torso", torso.toSet())
+                            apply()
+                        }
+                        workoutViewModel.loadCustomExercises()
+                    }
+                }
+            }
+        }
+        dataClient.addListener(dataListener)
+    }
+
     GymNemoTheme {
         AppScaffold {
             SwipeDismissableNavHost(
                 navController = navController,
-                startDestination = "main"
+                startDestination = "splash"
             ) {
+                composable("splash") {
+                    var stage by remember { mutableStateOf(0) }
+                    LaunchedEffect(Unit) {
+                        delay(3000)
+                        stage = 1
+                        delay(4000)
+                        navController.navigate("main") {
+                            popUpTo("splash") { inclusive = true }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (stage == 0) {
+                            Icon(
+                                painter = painterResource(R.drawable.icono_app),
+                                contentDescription = "Logo",
+                                modifier = Modifier.size(80.dp),
+                                tint = Color.Unspecified
+                            )
+                        } else {
+                            AndroidView(
+                                factory = { ctx ->
+                                    android.webkit.WebView(ctx).apply {
+                                        setBackgroundColor(0)
+                                        settings.loadWithOverviewMode = true
+                                        settings.useWideViewPort = true
+                                        loadUrl("file:///android_asset/yo_animado.gif")
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
                 composable("main") {
                     val recoveryState by prefRepository.activeWorkoutStateFlow.collectAsState(
                         initial = com.jmcaamanog.gymnemo.data.datastore.ActiveWorkoutRecoveryState(false, "", "", 0, 0f)
@@ -263,6 +342,7 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                     val part = backStackEntry.arguments?.getString("part") ?: ""
                     ExerciseCarouselScreen(
                         bodyPart = part,
+                        viewModel = workoutViewModel,
                         onExerciseSelected = { exercise ->
                             workoutViewModel.startWorkout(part, exercise)
                             navController.navigate("countdown")
@@ -376,11 +456,20 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                     )
                 }
                 composable("settings") {
+                    var clickCount by remember { mutableStateOf(0) }
                     RadialThreeButtons(
                         topContent = { Icon(painterResource(R.drawable.ic_calendario), null, Modifier.fillMaxSize(0.5f), tint = Color.White) },
                         onTopClick = { navController.navigate("objectives") },
                         bottomLeftContent = { Icon(painterResource(R.drawable.ic_cuerpo_persona), null, Modifier.fillMaxSize(0.6f), tint = Color.White) },
-                        onBottomLeftClick = { navController.navigate("profile") },
+                        onBottomLeftClick = {
+                            clickCount++
+                            if (clickCount >= 7) {
+                                clickCount = 0
+                                navController.navigate("easter_egg")
+                            } else {
+                                navController.navigate("profile")
+                            }
+                        },
                         bottomRightContent = { Icon(painterResource(R.drawable.ic_peso_bascula), null, Modifier.fillMaxSize(0.6f), tint = Color.White) },
                         onBottomRightClick = { navController.navigate("picker_weight") }
                     )
@@ -474,7 +563,79 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         }
                     )
                 }
+                composable("easter_egg") {
+                    val context = LocalContext.current
+                    var updateStatus by remember { mutableStateOf("Buscar Actualización") }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AndroidView(
+                            factory = { ctx ->
+                                android.webkit.WebView(ctx).apply {
+                                    setBackgroundColor(0)
+                                    settings.loadWithOverviewMode = true
+                                    settings.useWideViewPort = true
+                                    loadUrl("file:///android_asset/yo_animado.gif")
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize().graphicsLayer(alpha = 0.3f)
+                        )
+                        androidx.compose.foundation.layout.Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Text("GymNemo Watch", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF00E5FF), fontSize = 11.sp)
+                            Text("v1.0.0", style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontSize = 8.sp)
+                            Text("Autor: JMCG", style = MaterialTheme.typography.labelSmall, color = Color.White, fontSize = 9.sp)
+                            Text("¡Cuidado con la hipoxia y dale caña al hierro! 🏋️‍♂️💀", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFF007F), fontSize = 8.sp, textAlign = TextAlign.Center)
+                            Text("Copyright © 2026 jmcaamanog", style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontSize = 7.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            androidx.wear.compose.material3.Button(
+                                onClick = {
+                                    updateStatus = "Comprobando..."
+                                    checkAppUpdate(context) { version, url ->
+                                        updateStatus = "Nueva v$version en GitHub"
+                                    }
+                                },
+                                modifier = Modifier.height(24.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                            ) {
+                                Text(updateStatus, fontSize = 8.sp)
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+fun checkAppUpdate(context: android.content.Context, onUpdateAvailable: (String, String) -> Unit) {
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        try {
+            val url = java.net.URL("https://api.github.com/repos/jmcaamanog/GymNemo/releases/latest")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connect()
+            if (connection.responseCode == 200) {
+                val text = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = org.json.JSONObject(text)
+                val remoteVersion = json.getString("tag_name").replace("v", "")
+                val assets = json.getJSONArray("assets")
+                val downloadUrl = if (assets.length() > 0) assets.getJSONObject(0).getString("browser_download_url") else ""
+                val localVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                if (remoteVersion != localVersion) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        onUpdateAvailable(remoteVersion, downloadUrl)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

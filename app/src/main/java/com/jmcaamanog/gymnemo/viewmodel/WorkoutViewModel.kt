@@ -40,6 +40,32 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
     private val _workoutState = MutableStateFlow(ActiveWorkoutState())
     val workoutState: StateFlow<ActiveWorkoutState> = _workoutState.asStateFlow()
 
+    private val _customExercises = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    val customExercises: StateFlow<Map<String, List<String>>> = _customExercises.asStateFlow()
+
+    init {
+        loadCustomExercises()
+    }
+
+    fun loadCustomExercises() {
+        val prefs = repository.context.getSharedPreferences("custom_exercises_prefs", android.content.Context.MODE_PRIVATE)
+        val map = mutableMapOf<String, List<String>>()
+        listOf("brazo", "pierna", "torso").forEach { part ->
+            val set = prefs.getStringSet(part, emptySet()) ?: emptySet()
+            map[part] = set.toList()
+        }
+        _customExercises.value = map
+    }
+
+    fun addCustomExercise(bodyPart: String, name: String) {
+        val prefs = repository.context.getSharedPreferences("custom_exercises_prefs", android.content.Context.MODE_PRIVATE)
+        val partKey = bodyPart.lowercase()
+        val currentSet = prefs.getStringSet(partKey, emptySet())?.toMutableSet() ?: mutableSetOf()
+        currentSet.add(name)
+        prefs.edit().putStringSet(partKey, currentSet).apply()
+        loadCustomExercises()
+    }
+
     private var timerJob: Job? = null
     private var heartRateJob: Job? = null
 

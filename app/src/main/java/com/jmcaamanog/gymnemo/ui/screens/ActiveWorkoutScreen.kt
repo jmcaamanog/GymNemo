@@ -42,9 +42,21 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import com.jmcaamanog.gymnemo.viewmodel.WorkoutViewModel
 import androidx.compose.animation.core.animateFloat
-
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
 
 @Composable
 fun ActiveWorkoutScreen(
@@ -54,10 +66,77 @@ fun ActiveWorkoutScreen(
 ) {
     val state by viewModel.workoutState.collectAsState()
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
 
     val minutes = state.durationSeconds / 60
     val seconds = state.durationSeconds % 60
     val timeString = String.format("%02d:%02d", minutes, seconds)
+
+    // Lógica de localización para CARRERA
+    val locationManager = remember { context.getSystemService(Context.LOCATION_SERVICE) as LocationManager }
+    var currentSpeed by remember { mutableFloatStateOf(0f) }
+    var totalDistance by remember { mutableFloatStateOf(0f) }
+    var avgSpeed by remember { mutableFloatStateOf(0f) }
+    var currentAltitude by remember { mutableDoubleStateOf(0.0) }
+    var lastLocation by remember { mutableStateOf<Location?>(null) }
+    val routePoints = remember { mutableListOf<String>() }
+
+    val hasLocationPermission = remember {
+        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    if (state.exerciseName == "CARRERA" && hasLocationPermission) {
+        DisposableEffect(Unit) {
+            val locationListener = object : LocationListener {
+                override fun onLocationChanged(location: Location) {
+                    currentAltitude = location.altitude
+                    val speedKmh = location.speed * 3.6f
+                    currentSpeed = speedKmh
+
+                    val lastLoc = lastLocation
+                    if (lastLoc != null) {
+                        val distance = lastLoc.distanceTo(location)
+                        totalDistance += distance
+                        val duration = state.durationSeconds
+                        if (duration > 0) {
+                            avgSpeed = (totalDistance / duration) * 3.6f
+                        }
+                    }
+                    lastLocation = location
+                    routePoints.add("${location.latitude},${location.longitude},${location.altitude},${System.currentTimeMillis()}")
+                    
+                    // Actualizar en el ViewModel
+                    val pointsJson = "[" + routePoints.joinToString(",") { "\"$it\"" } + "]"
+                    viewModel.updateGpsTrack(pointsJson, avgSpeed)
+                }
+                override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }
+            try {
+                val provider = if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    LocationManager.GPS_PROVIDER
+                } else {
+                    LocationManager.NETWORK_PROVIDER
+                }
+                locationManager.requestLocationUpdates(
+                    provider,
+                    2000L,
+                    1f,
+                    locationListener
+                )
+            } catch (e: SecurityException) {
+                e.printStackTrace()
+            }
+            onDispose {
+                try {
+                    locationManager.removeUpdates(locationListener)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
 
     // Animación de latido para el corazón (desactivada en modo ambiente)
     val infiniteTransition = rememberInfiniteTransition(label = "latido")
@@ -175,14 +254,34 @@ fun ActiveWorkoutScreen(
 
                 if (!isAmbientMode) {
                     Spacer(modifier = Modifier.height(1.dp))
-                    Text(
-                        text = tempoPhaseText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = tempoColor,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 8.sp,
-                        textAlign = TextAlign.Center
-                    )
+                    if (state.exerciseName == "CARRERA") {
+                        Text(
+                            text = "VM: ${String.format("%.1f", avgSpeed)} km/h | ALT: ${currentAltitude.toInt()}m",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF00E5FF),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 8.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    } else if (state.exerciseName == "CARRERA GYM") {
+                        Text(
+                            text = "CINTA DE CORRER (GYM)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFFFEB3B),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 8.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        Text(
+                            text = tempoPhaseText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = tempoColor,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 8.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))

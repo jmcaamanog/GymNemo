@@ -63,6 +63,16 @@ fun PersonalRecordScreen(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier.padding(horizontal = 12.dp)
             ) {
+                // Icono de Diana estilizado
+                Icon(
+                    imageVector = Icons.Default.TrackChanges,
+                    contentDescription = "Récord Personal",
+                    modifier = Modifier.size(24.dp),
+                    tint = if (prState != null) Color(0xFF00E5FF) else Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 // Nombre del ejercicio
                 Text(
                     text = exerciseName.uppercase(),
@@ -76,19 +86,9 @@ fun PersonalRecordScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Icono de Diana estilizado
-                Icon(
-                    imageVector = Icons.Default.TrackChanges,
-                    contentDescription = "Récord Personal",
-                    modifier = Modifier.size(24.dp),
-                    tint = if (prState != null) Color(0xFF00E5FF) else Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
                 val record = prState
                 if (record != null) {
-                    // Si hay récord guardado
+                    // Peso
                     Text(
                         text = "${record.weightKg.toInt()} kg",
                         style = MaterialTheme.typography.displayMedium,
@@ -96,6 +96,7 @@ fun PersonalRecordScreen(
                         color = Color.White,
                         fontSize = 26.sp
                     )
+                    // Repeticiones
                     Text(
                         text = "${record.reps} reps",
                         style = MaterialTheme.typography.bodyMedium,
@@ -103,6 +104,7 @@ fun PersonalRecordScreen(
                         color = Color(0xFF00E5FF),
                         fontSize = 11.sp
                     )
+                    // Fecha
                     Text(
                         text = dateFormat.format(Date(record.timestamp)),
                         style = MaterialTheme.typography.labelSmall,
