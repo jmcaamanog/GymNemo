@@ -11,6 +11,7 @@ import androidx.wear.protolayout.material3.materialScope
 import androidx.wear.protolayout.material3.primaryLayout
 import androidx.wear.protolayout.material3.text
 import androidx.wear.protolayout.material3.ButtonDefaults
+import androidx.wear.protolayout.material3.icon
 import androidx.wear.protolayout.types.layoutString
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.RequestBuilders.ResourcesRequest
@@ -21,8 +22,9 @@ import androidx.wear.tiles.tooling.preview.TilePreviewData
 import androidx.wear.tooling.preview.devices.WearDevices
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.jmcaamanog.gymnemo.R
 
-private const val RESOURCES_VERSION = "2"
+private const val RESOURCES_VERSION = "3"
 
 class MainTileService : TileService() {
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> =
@@ -35,6 +37,26 @@ class MainTileService : TileService() {
 private fun resources(requestParams: ResourcesRequest): ResourceBuilders.Resources {
     return ResourceBuilders.Resources.Builder()
         .setVersion(RESOURCES_VERSION)
+        .addIdToImageMapping(
+            "ic_dashboard",
+            ResourceBuilders.ImageResource.Builder()
+                .setAndroidResourceByResId(
+                    ResourceBuilders.AndroidImageResourceByResId.Builder()
+                        .setResourceId(R.drawable.ic_dashboard)
+                        .build()
+                )
+                .build()
+        )
+        .addIdToImageMapping(
+            "ic_pesa_gym",
+            ResourceBuilders.ImageResource.Builder()
+                .setAndroidResourceByResId(
+                    ResourceBuilders.AndroidImageResourceByResId.Builder()
+                        .setResourceId(R.drawable.ic_pesa_gym)
+                        .build()
+                )
+                .build()
+        )
         .build()
 }
 
@@ -45,12 +67,32 @@ private fun tile(
     val mainActivity = ComponentName(context.packageName, "com.jmcaamanog.gymnemo.presentation.MainActivity")
     
     val dashboardClick = ModifiersBuilders.Clickable.Builder()
-        .setOnClick(ActionBuilders.launchAction(mainActivity))
+        .setOnClick(
+            ActionBuilders.LaunchAction.Builder()
+                .setAndroidActivity(
+                    ActionBuilders.AndroidActivity.Builder()
+                        .setClassName("com.jmcaamanog.gymnemo.presentation.MainActivity")
+                        .setPackageName(context.packageName)
+                        .addKeyToExtraMapping("startScreen", ActionBuilders.stringExtra("dashboard"))
+                        .build()
+                )
+                .build()
+        )
         .setId("open_dashboard")
         .build()
 
     val trainClick = ModifiersBuilders.Clickable.Builder()
-        .setOnClick(ActionBuilders.launchAction(mainActivity))
+        .setOnClick(
+            ActionBuilders.LaunchAction.Builder()
+                .setAndroidActivity(
+                    ActionBuilders.AndroidActivity.Builder()
+                        .setClassName("com.jmcaamanog.gymnemo.presentation.MainActivity")
+                        .setPackageName(context.packageName)
+                        .addKeyToExtraMapping("startScreen", ActionBuilders.stringExtra("train_category"))
+                        .build()
+                )
+                .build()
+        )
         .setId("open_train")
         .build()
     
@@ -63,6 +105,7 @@ private fun tile(
                         mainSlot = {
                             button(
                                 onClick = dashboardClick,
+                                iconContent = { icon("ic_dashboard") },
                                 labelContent = { text("Dashboard".layoutString) },
                                 colors = ButtonDefaults.run { filledTonalButtonColors() }
                             )
@@ -70,6 +113,7 @@ private fun tile(
                         bottomSlot = {
                             button(
                                 onClick = trainClick,
+                                iconContent = { icon("ic_pesa_gym") },
                                 labelContent = { text("Entrenar".layoutString) },
                                 colors = ButtonDefaults.run { filledButtonColors() }
                             )

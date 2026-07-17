@@ -25,6 +25,7 @@ data class ActiveWorkoutState(
     val durationSeconds: Long = 0,
     val heartRate: Int = 0,
     val maxHeartRate: Int = 0,
+    val heartRateHistory: List<Int> = emptyList(),
     val spo2: Int = 98,
     val minSpO2: Int = 98,
     val isPaused: Boolean = false,
@@ -175,9 +176,11 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
                             // Entrenando, fluctúa arriba hacia esfuerzo
                             (state.heartRate + hrDelta).coerceIn(110, 165)
                         }
+                        val newHistory = state.heartRateHistory + nextHR
                         state.copy(
                             heartRate = nextHR,
-                            maxHeartRate = maxOf(state.maxHeartRate, nextHR)
+                            maxHeartRate = maxOf(state.maxHeartRate, nextHR),
+                            heartRateHistory = newHistory
                         )
                     }
                 }
@@ -222,8 +225,10 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
         viewModelScope.launch {
             val state = _workoutState.value
             if (state.isActive) {
-                val averageHR = if (state.loggedSets.isNotEmpty()) {
-                    Random.nextInt(120, 140) // Pulsaciones promedio estimadas
+                val averageHR = if (state.heartRateHistory.isNotEmpty()) {
+                    state.heartRateHistory.average().toInt()
+                } else if (state.loggedSets.isNotEmpty()) {
+                    Random.nextInt(120, 140)
                 } else {
                     130
                 }

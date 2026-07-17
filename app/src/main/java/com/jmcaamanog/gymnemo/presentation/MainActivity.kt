@@ -111,8 +111,9 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
         val workoutRepository = WorkoutRepository(applicationContext, db.workoutDao(), prefRepository)
         val factory = ViewModelFactory(workoutRepository)
 
+        val startScreen = intent.getStringExtra("startScreen") ?: "main"
         setContent {
-            GymNemoApp(factory, prefRepository, isAmbientMode)
+            GymNemoApp(factory, prefRepository, isAmbientMode, startScreen)
         }
     }
 
@@ -132,7 +133,7 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
 }
 
 @Composable
-fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesRepository, isAmbientMode: Boolean) {
+fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesRepository, isAmbientMode: Boolean, startScreen: String = "main") {
     val navController = rememberSwipeDismissableNavController()
     val settingsViewModel: SettingsViewModel = viewModel(factory = factory)
     val workoutViewModel: WorkoutViewModel = viewModel(factory = factory)
@@ -178,7 +179,7 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         delay(3000)
                         stage = 1
                         delay(4000)
-                        navController.navigate("main") {
+                        navController.navigate(startScreen) {
                             popUpTo("splash") { inclusive = true }
                         }
                     }
