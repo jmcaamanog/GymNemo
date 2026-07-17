@@ -52,6 +52,18 @@ import com.jmcaamanog.gymnemo.ui.screens.ExerciseCarouselScreen
 import com.jmcaamanog.gymnemo.ui.screens.CountdownScreen
 import com.jmcaamanog.gymnemo.ui.screens.ActiveWorkoutScreen
 import com.jmcaamanog.gymnemo.ui.screens.PersonalRecordScreen
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Job
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.TrackChanges
@@ -456,19 +468,76 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                     )
                 }
                 composable("settings") {
-                    var clickCount by remember { mutableStateOf(0) }
+                    var progress by remember { mutableStateOf(0f) }
+                    val coroutineScope = rememberCoroutineScope()
+                    val haptic = LocalHapticFeedback.current
+                    var startTime by remember { mutableStateOf(0L) }
+
                     RadialThreeButtons(
                         topContent = { Icon(painterResource(R.drawable.ic_calendario), null, Modifier.fillMaxSize(0.5f), tint = Color.White) },
                         onTopClick = { navController.navigate("objectives") },
-                        bottomLeftContent = { Icon(painterResource(R.drawable.ic_cuerpo_persona), null, Modifier.fillMaxSize(0.6f), tint = Color.White) },
-                        onBottomLeftClick = {
-                            clickCount++
-                            if (clickCount >= 7) {
-                                clickCount = 0
-                                navController.navigate("easter_egg")
-                            } else {
-                                navController.navigate("profile")
+                        bottomLeftContent = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onPress = {
+                                                startTime = System.currentTimeMillis()
+                                                progress = 0f
+                                                val job = coroutineScope.launch {
+                                                    val duration = 7000f // 7 segundos
+                                                    val steps = 70
+                                                    val stepTime = 100L
+                                                    for (i in 1..steps) {
+                                                        delay(stepTime)
+                                                        progress = i.toFloat() / steps
+                                                    }
+                                                }
+                                                try {
+                                                    awaitRelease()
+                                                } finally {
+                                                    job.cancel()
+                                                    val holdTime = System.currentTimeMillis() - startTime
+                                                    if (progress >= 1.0f) {
+                                                        progress = 0f
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        navController.navigate("easter_egg")
+                                                    } else {
+                                                        progress = 0f
+                                                        if (holdTime < 500) {
+                                                            navController.navigate("profile")
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                    .drawWithContent {
+                                        drawContent()
+                                        if (progress > 0f) {
+                                            // Dibujar el arco de carga celeste neón alrededor del icono
+                                            drawArc(
+                                                color = Color(0xFF00E5FF),
+                                                startAngle = -90f,
+                                                sweepAngle = 360f * progress,
+                                                useCenter = false,
+                                                style = Stroke(width = 3.dp.toPx())
+                                            )
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_cuerpo_persona),
+                                    contentDescription = "Perfil",
+                                    modifier = Modifier.fillMaxSize(0.6f),
+                                    tint = Color.White
+                                )
                             }
+                        },
+                        onBottomLeftClick = {
+                            // Handled by pointerInput inside bottomLeftContent
                         },
                         bottomRightContent = { Icon(painterResource(R.drawable.ic_peso_bascula), null, Modifier.fillMaxSize(0.6f), tint = Color.White) },
                         onBottomRightClick = { navController.navigate("picker_weight") }
