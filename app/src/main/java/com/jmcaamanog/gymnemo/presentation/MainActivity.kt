@@ -28,12 +28,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
@@ -297,6 +299,7 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                     val part = backStackEntry.arguments?.getString("part") ?: ""
                     ExerciseCarouselScreen(
                         bodyPart = part,
+                        viewModel = workoutViewModel,
                         onExerciseSelected = { exercise ->
                             navController.navigate("pr_detail/$exercise")
                         }
