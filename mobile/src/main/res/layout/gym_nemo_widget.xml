@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="12dp"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="GYMNEMO"
+        android:textColor="#00E5FF"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:layout_marginBottom="8dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btn_widget_historial"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Historial"
+            android:textColor="#000000"
+            android:backgroundTint="#00E5FF"
+            android:textSize="11sp"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/btn_widget_objetivos"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Objetivos"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#FFFF007F"
+            android:textSize="11sp"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/btn_widget_ajustes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Ajustes"
+            android:textColor="#000000"
+            android:backgroundTint="#FFFFEB3B"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+</LinearLayout>

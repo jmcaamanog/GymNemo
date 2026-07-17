@@ -31,6 +31,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.speech.RecognizerIntent
 import android.content.Intent
 import com.jmcaamanog.gymnemo.R
+import com.jmcaamanog.gymnemo.viewmodel.WorkoutViewModel
 
 @Composable
 fun ExerciseCarouselScreen(

@@ -1,12 +1,20 @@
 package com.jmcaamanog.gymnemo.presentation
 
 import android.os.Bundle
+import android.content.pm.PackageManager
 import androidx.activity.compose.setContent
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -20,20 +28,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.wear.ambient.AmbientModeSupport
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
@@ -52,18 +65,6 @@ import com.jmcaamanog.gymnemo.ui.screens.ExerciseCarouselScreen
 import com.jmcaamanog.gymnemo.ui.screens.CountdownScreen
 import com.jmcaamanog.gymnemo.ui.screens.ActiveWorkoutScreen
 import com.jmcaamanog.gymnemo.ui.screens.PersonalRecordScreen
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.Job
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.TrackChanges
@@ -78,10 +79,6 @@ import com.jmcaamanog.gymnemo.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.delay
-import android.content.pm.PackageManager
 
 class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvider {
     private var isAmbientMode by mutableStateOf(false)
@@ -121,7 +118,6 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
         }
 
         override fun onUpdateAmbient() {
-            // Actualizar la pantalla cada minuto si es necesario
         }
     }
 }
@@ -132,6 +128,7 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
     val settingsViewModel: SettingsViewModel = viewModel(factory = factory)
     val workoutViewModel: WorkoutViewModel = viewModel(factory = factory)
     val uiState by settingsViewModel.uiState.collectAsState()
+    var updateStatus by remember { mutableStateOf("Versión 1.0.0") }
 
     val context = LocalContext.current
     LaunchedEffect(Unit) {
@@ -165,46 +162,8 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
         AppScaffold {
             SwipeDismissableNavHost(
                 navController = navController,
-                startDestination = "splash"
+                startDestination = "main"
             ) {
-                composable("splash") {
-                    var stage by remember { mutableStateOf(0) }
-                    LaunchedEffect(Unit) {
-                        delay(3000)
-                        stage = 1
-                        delay(4000)
-                        navController.navigate("main") {
-                            popUpTo("splash") { inclusive = true }
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (stage == 0) {
-                            Icon(
-                                painter = painterResource(R.drawable.icono_app),
-                                contentDescription = "Logo",
-                                modifier = Modifier.size(80.dp),
-                                tint = Color.Unspecified
-                            )
-                        } else {
-                            AndroidView(
-                                factory = { ctx ->
-                                    android.webkit.WebView(ctx).apply {
-                                        setBackgroundColor(0)
-                                        settings.loadWithOverviewMode = true
-                                        settings.useWideViewPort = true
-                                        loadUrl("file:///android_asset/yo_animado.gif")
-                                    }
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-                }
                 composable("main") {
                     val recoveryState by prefRepository.activeWorkoutStateFlow.collectAsState(
                         initial = com.jmcaamanog.gymnemo.data.datastore.ActiveWorkoutRecoveryState(false, "", "", 0, 0f)
@@ -229,17 +188,17 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         )
 
                         if (showRecoveryDialog) {
+                            val scope = rememberCoroutineScope()
                             androidx.wear.compose.material3.AlertDialog(
                                 visible = showRecoveryDialog,
                                 onDismissRequest = { 
                                     showRecoveryDialog = false
-                                    val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
                                     scope.launch {
                                         prefRepository.saveActiveWorkoutState(false)
                                     }
                                 },
-                                title = { androidx.wear.compose.material3.Text("¿Reanudar entreno?", textAlign = TextAlign.Center) },
-                                text = { androidx.wear.compose.material3.Text("Se detectó una sesión de ${recoveryState.bodyPart.uppercase()}.", fontSize = 11.sp, textAlign = TextAlign.Center) },
+                                title = { Text("¿Reanudar entreno?", textAlign = TextAlign.Center) },
+                                text = { Text("Se detectó una sesión de ${recoveryState.bodyPart.uppercase()}.", fontSize = 11.sp, textAlign = TextAlign.Center) },
                                 confirmButton = {
                                     androidx.wear.compose.material3.Button(
                                         onClick = {
@@ -253,20 +212,19 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                                             navController.navigate("active_workout")
                                         }
                                     ) {
-                                        androidx.wear.compose.material3.Text("SÍ")
+                                        Text("SÍ")
                                     }
                                 },
                                 dismissButton = {
                                     androidx.wear.compose.material3.Button(
                                         onClick = {
                                             showRecoveryDialog = false
-                                            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
                                             scope.launch {
                                                 prefRepository.saveActiveWorkoutState(false)
                                             }
                                         }
                                     ) {
-                                        androidx.wear.compose.material3.Text("NO")
+                                        Text("NO")
                                     }
                                 }
                             )
@@ -297,6 +255,7 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                     val part = backStackEntry.arguments?.getString("part") ?: ""
                     ExerciseCarouselScreen(
                         bodyPart = part,
+                        viewModel = workoutViewModel,
                         onExerciseSelected = { exercise ->
                             navController.navigate("pr_detail/$exercise")
                         }
@@ -340,7 +299,7 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                                 .align(Alignment.Center),
                             contentAlignment = Alignment.Center
                         ) {
-                            androidx.wear.compose.material3.Text(
+                            Text(
                                 text = "END",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.ExtraBold,
@@ -435,7 +394,7 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                             workoutViewModel.logSet(weight.toFloat(), reps)
                             when (action) {
                                 "repeat" -> {
-                                    navController.popBackStack("pause_screen", false)
+                                    navController.popBackStack("active_workout", false)
                                 }
                                 "change" -> {
                                     workoutViewModel.stopAndSaveWorkout {
@@ -468,77 +427,11 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                     )
                 }
                 composable("settings") {
-                    var progress by remember { mutableStateOf(0f) }
-                    val coroutineScope = rememberCoroutineScope()
-                    val haptic = LocalHapticFeedback.current
-                    var startTime by remember { mutableStateOf(0L) }
-
                     RadialThreeButtons(
                         topContent = { Icon(painterResource(R.drawable.ic_calendario), null, Modifier.fillMaxSize(0.5f), tint = Color.White) },
                         onTopClick = { navController.navigate("objectives") },
-                        bottomLeftContent = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onPress = {
-                                                startTime = System.currentTimeMillis()
-                                                progress = 0f
-                                                val job = coroutineScope.launch {
-                                                    val duration = 7000f // 7 segundos
-                                                    val steps = 70
-                                                    val stepTime = 100L
-                                                    for (i in 1..steps) {
-                                                        delay(stepTime)
-                                                        progress = i.toFloat() / steps
-                                                    }
-                                                }
-                                                try {
-                                                    awaitRelease()
-                                                } finally {
-                                                    job.cancel()
-                                                    val holdTime = System.currentTimeMillis() - startTime
-                                                    if (progress >= 1.0f) {
-                                                        progress = 0f
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        navController.navigate("easter_egg")
-                                                    } else {
-                                                        progress = 0f
-                                                        if (holdTime < 500) {
-                                                            navController.navigate("profile")
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    }
-                                    .drawWithContent {
-                                        drawContent()
-                                        if (progress > 0f) {
-                                            // Dibujar el arco de carga celeste neón alrededor del icono
-                                            drawArc(
-                                                color = Color(0xFF00E5FF),
-                                                startAngle = -90f,
-                                                sweepAngle = 360f * progress,
-                                                useCenter = false,
-                                                style = Stroke(width = 3.dp.toPx())
-                                            )
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_cuerpo_persona),
-                                    contentDescription = "Perfil",
-                                    modifier = Modifier.fillMaxSize(0.6f),
-                                    tint = Color.White
-                                )
-                            }
-                        },
-                        onBottomLeftClick = {
-                            // Handled by pointerInput inside bottomLeftContent
-                        },
+                        bottomLeftContent = { Icon(painterResource(R.drawable.ic_cuerpo_persona), null, Modifier.fillMaxSize(0.6f), tint = Color.White) },
+                        onBottomLeftClick = { navController.navigate("profile") },
                         bottomRightContent = { Icon(painterResource(R.drawable.ic_peso_bascula), null, Modifier.fillMaxSize(0.6f), tint = Color.White) },
                         onBottomRightClick = { navController.navigate("picker_weight") }
                     )
@@ -632,9 +525,8 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         }
                     )
                 }
-                composable("easter_egg") {
-                    val context = LocalContext.current
-                    var updateStatus by remember { mutableStateOf("Buscar Actualización") }
+                composable("about") {
+                    val scope = rememberCoroutineScope()
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -684,7 +576,7 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
 }
 
 fun checkAppUpdate(context: android.content.Context, onUpdateAvailable: (String, String) -> Unit) {
-    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+    CoroutineScope(Dispatchers.IO).launch {
         try {
             val url = java.net.URL("https://api.github.com/repos/jmcaamanog/GymNemo/releases/latest")
             val connection = url.openConnection() as java.net.HttpURLConnection
@@ -698,7 +590,7 @@ fun checkAppUpdate(context: android.content.Context, onUpdateAvailable: (String,
                 val downloadUrl = if (assets.length() > 0) assets.getJSONObject(0).getString("browser_download_url") else ""
                 val localVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionName
                 if (remoteVersion != localVersion) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    kotlinx.coroutines.withContext(Dispatchers.Main) {
                         onUpdateAvailable(remoteVersion, downloadUrl)
                     }
                 }

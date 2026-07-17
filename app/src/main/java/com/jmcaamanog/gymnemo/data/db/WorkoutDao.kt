@@ -53,6 +53,15 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM workout_sessions WHERE bodyPart = :bodyPart ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLastSessionForPart(bodyPart: String): WorkoutSession?
+
+    @Query("""
+        SELECT EXISTS(
+            SELECT 1 FROM workout_sets ws
+            INNER JOIN workout_sessions s ON ws.sessionId = s.sessionId
+            WHERE ws.exerciseName = :exerciseName AND s.timestamp >= :since
+        )
+    """)
+    suspend fun hasTrainedExerciseSince(exerciseName: String, since: Long): Boolean
 }
 
 data class PersonalRecordTuple(

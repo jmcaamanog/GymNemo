@@ -6,12 +6,11 @@ import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
-import androidx.wear.protolayout.ColorBuilders.argb
-import androidx.wear.protolayout.material3.ButtonDefaults
 import androidx.wear.protolayout.material3.button
 import androidx.wear.protolayout.material3.materialScope
 import androidx.wear.protolayout.material3.primaryLayout
 import androidx.wear.protolayout.material3.text
+import androidx.wear.protolayout.material3.ButtonDefaults
 import androidx.wear.protolayout.types.layoutString
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.RequestBuilders.ResourcesRequest
@@ -22,7 +21,6 @@ import androidx.wear.tiles.tooling.preview.TilePreviewData
 import androidx.wear.tooling.preview.devices.WearDevices
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import com.jmcaamanog.gymnemo.R
 
 private const val RESOURCES_VERSION = "2"
 
@@ -66,14 +64,14 @@ private fun tile(
                             button(
                                 onClick = dashboardClick,
                                 labelContent = { text("Dashboard".layoutString) },
-                                colors = ButtonDefaults.buttonColors(argb(0xFF1E1E1E), argb(0xFF00E5FF))
+                                colors = ButtonDefaults.run { filledTonalButtonColors() }
                             )
                         },
                         bottomSlot = {
                             button(
                                 onClick = trainClick,
                                 labelContent = { text("Entrenar".layoutString) },
-                                colors = ButtonDefaults.buttonColors(argb(0xFF00E5FF), argb(0xFF000000))
+                                colors = ButtonDefaults.run { filledButtonColors() }
                             )
                         }
                     )

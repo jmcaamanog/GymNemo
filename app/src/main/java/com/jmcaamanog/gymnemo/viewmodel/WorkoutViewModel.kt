@@ -193,6 +193,11 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
         _workoutState.update { it.copy(isPaused = false, spo2 = 98) }
     }
 
+    fun updateGpsTrack(pointsJson: String, avgSpeed: Float) {
+        // Por ahora solo actualizamos el estado si es necesario, 
+        // o guardamos para la sesión final
+    }
+
     fun logSet(weight: Float, reps: Int, restSeconds: Int = 90) {
         val state = _workoutState.value
         val newSet = WorkoutSet(
@@ -269,6 +274,21 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
         val lastSet = _workoutState.value.loggedSets.lastOrNull() ?: return false
         val pr = repository.getPersonalRecordForExercise(lastSet.exerciseName) ?: return true
         return lastSet.weightKg > pr.weightKg || (lastSet.weightKg == pr.weightKg && lastSet.reps > pr.reps)
+    }
+
+    suspend fun wasTrainedThisWeek(exerciseName: String): Boolean {
+        return try {
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startOfWeek = calendar.timeInMillis
+            repository.hasTrainedExerciseSince(exerciseName, startOfWeek)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun getStartOfTodayTimestamp(): Long {

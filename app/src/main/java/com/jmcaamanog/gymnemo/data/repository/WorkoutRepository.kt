@@ -92,4 +92,8 @@ class WorkoutRepository(
     suspend fun getPersonalRecordForExercise(exerciseName: String): PersonalRecordTuple? {
         return workoutDao.getPersonalRecordForExercise(exerciseName)
     }
+
+    suspend fun hasTrainedExerciseSince(exerciseName: String, since: Long): Boolean {
+        return workoutDao.hasTrainedExerciseSince(exerciseName, since)
+    }
 }

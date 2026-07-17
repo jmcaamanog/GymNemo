@@ -18,11 +18,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -34,11 +36,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.core.content.FileProvider
 import com.jmcaamanog.gymnemo.mobile.data.db.WorkoutDb
 import com.jmcaamanog.gymnemo.mobile.data.db.WorkoutSessionEntity
@@ -88,6 +93,7 @@ fun MobileAppScaffold(db: WorkoutDb, startTab: String) {
     val sessions by db.workoutDao().getAllSessions().collectAsState(initial = emptyList())
     val allSets by db.workoutDao().getAllSets().collectAsState(initial = emptyList())
     val exercises by db.workoutDao().getDistinctExercises().collectAsState(initial = emptyList())
+    val context = LocalContext.current
 
     Scaffold(
         bottomBar = {
@@ -134,10 +140,10 @@ fun MobileAppScaffold(db: WorkoutDb, startTab: String) {
                     )
                 )
                 NavigationBarItem(
-                    selected = selectedTab == "respaldo",
-                    onClick = { selectedTab = "respaldo" },
-                    label = { Text("Respaldos") },
-                    icon = { Icon(Icons.Default.Backup, contentDescription = "Respaldos") },
+                    selected = selectedTab == "ajustes",
+                    onClick = { selectedTab = "ajustes" },
+                    label = { Text("Ajustes") },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Ajustes") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF00E5FF),
                         selectedTextColor = Color(0xFF00E5FF),
@@ -147,10 +153,10 @@ fun MobileAppScaffold(db: WorkoutDb, startTab: String) {
                     )
                 )
                 NavigationBarItem(
-                    selected = selectedTab == "ajustes",
-                    onClick = { selectedTab = "ajustes" },
-                    label = { Text("Ajustes") },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Ajustes") },
+                    selected = selectedTab == "respaldo",
+                    onClick = { selectedTab = "respaldo" },
+                    label = { Text("Respaldos") },
+                    icon = { Icon(Icons.Default.Backup, contentDescription = "Respaldos") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF00E5FF),
                         selectedTextColor = Color(0xFF00E5FF),
@@ -171,8 +177,8 @@ fun MobileAppScaffold(db: WorkoutDb, startTab: String) {
                 "historial" -> HistorialTab(sessions, allSets)
                 "evolucion" -> EvolucionTab(exercises, allSets)
                 "objetivos" -> ObjetivosTab(sessions)
+                "ajustes" -> AjustesTab(context)
                 "respaldo" -> RespaldoTab(db)
-                "ajustes" -> AjustesTab(LocalContext.current)
             }
         }
     }
@@ -332,7 +338,7 @@ fun SessionCard(session: WorkoutSessionEntity, sets: List<WorkoutSetEntity>) {
 
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 16.dp)) {
-                    Divider(color = Color.DarkGray, thickness = 0.5.dp)
+                    HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Detalles de Telemetría Adicionales
@@ -422,6 +428,24 @@ fun EvolucionTab(exercises: List<String>, allSets: List<WorkoutSetEntity>) {
     var selectedExercise by remember { mutableStateOf(exercises.firstOrNull() ?: "") }
     var dropdownExpanded by remember { mutableStateOf(false) }
 
+    // Filtrar las series asociadas a este ejercicio y obtener peso máximo de cada sesión
+    val prPoints = remember(selectedExercise, allSets) {
+        allSets.filter { it.exerciseName.equals(selectedExercise, ignoreCase = true) }
+            .groupBy { it.sessionId }
+            .map { (sessionId, sets) ->
+                val maxWeight = sets.maxOfOrNull { it.weightKg } ?: 0f
+                // Obtener fecha estimada a partir de sessionId
+                Pair(sessionId, maxWeight)
+            }
+            .sortedBy { it.first } // Ordenar por ID de sesión cronológico
+    }
+
+    // Tarjeta de Récord Absoluto (PR)
+    val absolutePR = remember(selectedExercise, allSets) {
+        allSets.filter { it.exerciseName.equals(selectedExercise, ignoreCase = true) }
+            .maxByOrNull { it.weightKg }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -475,19 +499,6 @@ fun EvolucionTab(exercises: List<String>, allSets: List<WorkoutSetEntity>) {
                         }
                     }
                 }
-            }
-
-            // Filtrar las series asociadas a este ejercicio y obtener peso máximo de cada sesión
-            val prPoints = remember(selectedExercise, allSets) {
-                allSets.filter { it.exerciseName.equals(selectedExercise, ignoreCase = true) }
-                    .groupBy { it.sessionId }
-                    .map { (sessionId, sets) ->
-                        val maxWeight = sets.maxOfOrNull { it.weightKg } ?: 0f
-                        val maxReps = sets.filter { it.weightKg == maxWeight }.maxOfOrNull { it.reps } ?: 0
-                        // Obtener fecha estimada a partir de sessionId
-                        Pair(sessionId, maxWeight)
-                    }
-                    .sortedBy { it.first } // Ordenar por ID de sesión cronológico
             }
 
             // Gráfica de peso máximo
@@ -570,12 +581,6 @@ fun EvolucionTab(exercises: List<String>, allSets: List<WorkoutSetEntity>) {
                         }
                     }
                 }
-            }
-
-            // Tarjeta de Récord Absoluto (PR)
-            val absolutePR = remember(selectedExercise, allSets) {
-                allSets.filter { it.exerciseName.equals(selectedExercise, ignoreCase = true) }
-                    .maxByOrNull { it.weightKg }
             }
 
             if (absolutePR != null) {
@@ -1109,7 +1114,7 @@ fun GoalProgressBar(title: String, current: Float, target: Float, unit: String, 
             }
             Spacer(modifier = Modifier.height(12.dp))
             LinearProgressIndicator(
-                progress = progress,
+                progress = { progress },
                 color = accentColor,
                 trackColor = Color.DarkGray,
                 modifier = Modifier
@@ -1436,6 +1441,12 @@ fun exportToGpxFile(context: Context, session: WorkoutSessionEntity): File? {
                   </trkpt>
             """.trimIndent() + "\n")
         }
+
+        writer.write("""
+                </trkseg>
+              </trk>
+            </gpx>
+        """.trimIndent() + "\n")
 
         writer.flush()
         writer.close()
