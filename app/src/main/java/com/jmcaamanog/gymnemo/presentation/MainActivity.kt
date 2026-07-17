@@ -40,6 +40,9 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import com.jmcaamanog.gymnemo.R
+import android.graphics.ImageDecoder
+import android.graphics.drawable.AnimatedImageDrawable
+import android.widget.ImageView
 import com.jmcaamanog.gymnemo.data.datastore.UserPreferencesRepository
 import com.jmcaamanog.gymnemo.data.db.GymNemoDatabase
 import com.jmcaamanog.gymnemo.data.repository.WorkoutRepository
@@ -195,11 +198,18 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         } else {
                             AndroidView(
                                 factory = { ctx ->
-                                    android.webkit.WebView(ctx).apply {
-                                        setBackgroundColor(0)
-                                        settings.loadWithOverviewMode = true
-                                        settings.useWideViewPort = true
-                                        loadUrl("file:///android_asset/yo_animado.gif")
+                                    ImageView(ctx).apply {
+                                        scaleType = ImageView.ScaleType.CENTER_CROP
+                                        try {
+                                            val source = ImageDecoder.createSource(ctx.assets, "yo_animado.gif")
+                                            val drawable = ImageDecoder.decodeDrawable(source)
+                                            setImageDrawable(drawable)
+                                            if (drawable is AnimatedImageDrawable) {
+                                                drawable.start()
+                                            }
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
                                     }
                                 },
                                 modifier = Modifier.fillMaxSize()
@@ -646,11 +656,18 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                     ) {
                         AndroidView(
                             factory = { ctx ->
-                                android.webkit.WebView(ctx).apply {
-                                    setBackgroundColor(0)
-                                    settings.loadWithOverviewMode = true
-                                    settings.useWideViewPort = true
-                                    loadUrl("file:///android_asset/yo_animado.gif")
+                                ImageView(ctx).apply {
+                                    scaleType = ImageView.ScaleType.CENTER_CROP
+                                    try {
+                                        val source = ImageDecoder.createSource(ctx.assets, "yo_animado.gif")
+                                        val drawable = ImageDecoder.decodeDrawable(source)
+                                        setImageDrawable(drawable)
+                                        if (drawable is AnimatedImageDrawable) {
+                                            drawable.start()
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxSize().graphicsLayer(alpha = 0.3f)
