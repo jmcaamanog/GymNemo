@@ -143,43 +143,58 @@ fun sendWorkoutToGoogleSheets(context: Context, session: WorkoutSessionEntity, s
             val startStr = timeFormat.format(Date(session.timestamp))
             val endStr = timeFormat.format(Date(session.endTimestamp))
 
-            val json = JSONObject().apply {
-                put("timestamp", session.timestamp)
-                put("date", dateStr)
-                put("startTime", startStr)
-                put("endTime", endStr)
-                put("durationSeconds", session.durationSeconds)
-                put("totalKcal", session.totalKcal)
-                put("bodyPart", session.bodyPart)
+            // Construir el JSON de las series
+            val setsArray = JSONArray()
+            sets.forEach { set ->
+                setsArray.put(JSONObject().apply {
+                    put("exerciseName", set.exerciseName)
+                    put("weightKg", set.weightKg.toDouble())
+                    put("reps", set.reps)
+                    put("restSeconds", set.restSeconds)
+                })
+            }
 
-                val setsArray = JSONArray()
-                sets.forEach { set ->
-                    setsArray.put(JSONObject().apply {
-                        put("exerciseName", set.exerciseName)
-                        put("weightKg", set.weightKg.toDouble())
-                        put("reps", set.reps)
-                        put("restSeconds", set.restSeconds)
-                    })
-                }
-                put("sets", setsArray)
+            // Enviar via POST con parámetros form-urlencoded
+            // (Google Apps Script maneja mejor esto que Content-Type: application/json con redirects)
+            val postData = mapOf(
+                "timestamp" to session.timestamp.toString(),
+                "date" to dateStr,
+                "startTime" to startStr,
+                "endTime" to endStr,
+                "durationSeconds" to session.durationSeconds.toString(),
+                "totalKcal" to session.totalKcal.toString(),
+                "bodyPart" to session.bodyPart,
+                "sets" to setsArray.toString()
+            )
+
+            val postBody = postData.entries.joinToString("&") {
+                "${java.net.URLEncoder.encode(it.key, "UTF-8")}=${java.net.URLEncoder.encode(it.value, "UTF-8")}"
             }
 
             val url = URL(urlStr)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json")
+            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
             conn.connectTimeout = 15000
             conn.readTimeout = 15000
 
             conn.outputStream.use { os ->
-                os.write(json.toString().toByteArray(Charsets.UTF_8))
+                os.write(postBody.toByteArray(Charsets.UTF_8))
             }
 
             val responseCode = conn.responseCode
-            if (responseCode in 200..299 || responseCode == 302) {
+            android.util.Log.d("GymNemo", "Sheets response: $responseCode")
+            if (responseCode in 200..399) {
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(context, "¡Entreno exportado a Google Sheets!", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                val errorText = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                android.util.Log.e("GymNemo", "Sheets error: $errorText")
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Error Sheets: código $responseCode", Toast.LENGTH_LONG).show()
                 }
             }
             conn.disconnect()
