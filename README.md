@@ -1,13 +1,8 @@
 # 🔱 GymNemo — Offline Workout Tracker (Wear OS & Android)
 
-![Profesión](https://img.shields.io/badge/Profesi%C3%B3n-Arquitectos%20T%C3%A9cnicos-2e7d32?logo=micro%3Abit&logoColor=white&style=flat-square)
-![Role](https://img.shields.io/badge/Role-BIM%20%26%20ConTech-007ACC?logo=bim360&style=flat-square)
-![Location](https://img.shields.io/badge/Location-A%20Coru%C3%B1a%20%F0%9F%8C%8A-005B94?logo=lighthouse&logoColor=white&style=flat-square)
-![Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white&style=flat-square)
-![WearOS](https://img.shields.io/badge/Platform-WearOS-4285F4?logo=wearos&logoColor=white&style=flat-square)
-![Language](https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white&style=flat-square)
-![Stars](https://img.shields.io/github/stars/jmcaamanog/GymNemo?style=flat-square&color=yellow&logo=github)
-![License](https://img.shields.io/github/license/jmcaamanog/GymNemo?style=flat-square&color=green)
+| 🏗️ Perfil & ConTech | 📈 Repositorio & Enlaces |
+| :--- | :--- |
+| ![Profesión](https://img.shields.io/badge/Profesi%C3%B3n-Arquitectos%20T%C3%A9cnicos-2e7d32?logo=micro%3Abit&logoColor=white&style=plastic) <br> ![Role](https://img.shields.io/badge/Role-BIM%20%26%20ConTech-007ACC?logo=bim360&style=plastic) <br> ![Location](https://img.shields.io/badge/Location-A%20Coru%C3%B1a%20%F0%9F%8C%8A-005B94?logo=lighthouse&logoColor=white&style=plastic) <br> ![Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white&style=plastic) <br> ![WearOS](https://img.shields.io/badge/Platform-WearOS-4285F4?logo=wearos&logoColor=white&style=plastic) <br> ![Language](https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white&style=plastic) | ![Stars](https://img.shields.io/github/stars/jmcaamanog/GymNemo?style=plastic&color=yellow&logo=github) <br> ![License](https://img.shields.io/github/license/jmcaamanog/GymNemo?style=plastic&color=green) |
 
 ### La herramienta libre y 100% offline para el control y registro de entrenamientos de fuerza.
 *Desarrollado con foco en la usabilidad táctil en Wear OS y analíticas fluidas en Android Companion.*
@@ -29,8 +24,7 @@
 ---
 
 ## 👨‍💻 Creador y Diseñador
-Desarrollado y diseñado por `José Manuel Caamaño González` ([LinkedIn](https://www.linkedin.com/in/jmcaamanog/) · [Web](https://jmcaamanog.pages.dev)), Arquitecto Técnico y BIM Manager.
-*Filosofía: software libre de egos, utilidad técnica real y soberanía absoluta sobre los datos de entrenamiento.*
+Proyecto libre, sin egos, con utilidad técnica real y soberanía absoluta sobre los datos de entrenamiento.
 
 ---
 
