@@ -68,7 +68,6 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
     }
 
     private var timerJob: Job? = null
-    private var heartRateJob: Job? = null
 
     // Obtenemos los rings de progreso de calorías para hoy
     fun getKcalTrainedToday(bodyPart: String): kotlinx.coroutines.flow.Flow<Int> {
@@ -83,7 +82,6 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
 
     fun startWorkout(bodyPart: String, exerciseName: String, initialDuration: Long = 0L, initialKcal: Double = 0.0) {
         timerJob?.cancel()
-        heartRateJob?.cancel()
 
         viewModelScope.launch {
             val prefs = repository.userPreferencesFlow.first()
@@ -93,7 +91,6 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
                     exerciseName = exerciseName,
                     bodyPart = bodyPart,
                     durationSeconds = initialDuration,
-                    heartRate = 75,
                     accumulatedKcal = initialKcal,
                     loggedSets = emptyList(),
                     birthYear = prefs.birthYear
@@ -110,20 +107,10 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
                     delay(1000)
                     _workoutState.update { state ->
                         val newDuration = state.durationSeconds + 1
-                        val currentHR = state.heartRate
 
-                        // Fórmula Keytel por segundo
-                        val kcalBurnedPerSecond = if (currentHR > 0) {
-                            if (isMale) {
-                                ((-55.0969 + (0.6309 * currentHR) + (0.1988 * weight) + (0.2017 * age)) / (4.184 * 60.0))
-                            } else {
-                                ((-20.4022 + (0.4472 * currentHR) - (0.1263 * weight) + (0.074 * age)) / (4.184 * 60.0))
-                            }
-                        } else {
-                            // Fallback METs
-                            val met = if (state.bodyPart.lowercase() == "pierna") 6.0 else 5.0
-                            (met * 3.5 * weight) / (200.0 * 60.0)
-                        }
+                        // Fallback METs para calorías
+                        val met = if (state.bodyPart.lowercase() == "pierna") 6.0 else 5.0
+                        val kcalBurnedPerSecond = (met * 3.5 * weight) / (200.0 * 60.0)
 
                         val updatedKcal = (state.accumulatedKcal + kcalBurnedPerSecond).coerceAtLeast(0.0)
 
@@ -162,29 +149,6 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
                     }
                 }
             }
-
-            // Simular sensor de ritmo cardíaco (rango realista de esfuerzo de entrenamiento 110-160 BPM)
-            heartRateJob = launch {
-                while (true) {
-                    delay(2000)
-                    _workoutState.update { state ->
-                        val hrDelta = Random.nextInt(-5, 6)
-                        val nextHR = if (state.isPaused) {
-                            // En pausa, baja el pulso gradualmente hacia 80 BPM
-                            (state.heartRate - 4).coerceIn(80, 140)
-                        } else {
-                            // Entrenando, fluctúa arriba hacia esfuerzo
-                            (state.heartRate + hrDelta).coerceIn(110, 165)
-                        }
-                        val newHistory = state.heartRateHistory + nextHR
-                        state.copy(
-                            heartRate = nextHR,
-                            maxHeartRate = maxOf(state.maxHeartRate, nextHR),
-                            heartRateHistory = newHistory
-                        )
-                    }
-                }
-            }
         }
     }
 
@@ -218,21 +182,12 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
         _workoutState.update { it.copy(currentTempo = tempo) }
     }
 
-    fun stopAndSaveWorkout(heartRateRecoveryDrop: Int = 0, onComplete: () -> Unit) {
+    fun stopAndSaveWorkout(onComplete: () -> Unit) {
         timerJob?.cancel()
-        heartRateJob?.cancel()
 
         viewModelScope.launch {
             val state = _workoutState.value
             if (state.isActive) {
-                val averageHR = if (state.heartRateHistory.isNotEmpty()) {
-                    state.heartRateHistory.average().toInt()
-                } else if (state.loggedSets.isNotEmpty()) {
-                    Random.nextInt(120, 140)
-                } else {
-                    130
-                }
-
                 val endTimestamp = System.currentTimeMillis()
                 val startTimestamp = endTimestamp - (state.durationSeconds * 1000)
 
@@ -241,11 +196,8 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
                     endTimestamp = endTimestamp,
                     durationSeconds = state.durationSeconds,
                     totalKcal = state.accumulatedKcal.toInt(),
-                    averageHeartRate = averageHR,
-                    maxHeartRate = state.maxHeartRate,
                     minSpO2 = state.minSpO2,
-                    bodyPart = state.bodyPart,
-                    heartRateRecoveryDrop = heartRateRecoveryDrop
+                    bodyPart = state.bodyPart
                 )
 
                 repository.saveSession(finalSession, state.loggedSets)

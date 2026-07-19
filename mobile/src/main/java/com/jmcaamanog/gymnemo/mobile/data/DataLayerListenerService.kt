@@ -25,11 +25,8 @@ class DataLayerListenerService : WearableListenerService() {
                     val endTimestamp = dataMap.getLong("endTimestamp", System.currentTimeMillis())
                     val duration = dataMap.getLong("duration", 0L)
                     val totalKcal = dataMap.getInt("totalKcal", 0)
-                    val averageHR = dataMap.getInt("averageHR", 130)
-                    val maxHR = dataMap.getInt("maxHR", 130)
                     val minSpO2 = dataMap.getInt("minSpO2", 98)
                     val bodyPart = dataMap.getString("bodyPart", "brazo")
-                    val hrRecovery = dataMap.getInt("hrRecovery", 0)
                     val setsString = dataMap.getString("setsJson", "")
 
                     CoroutineScope(Dispatchers.IO).launch {
@@ -39,11 +36,8 @@ class DataLayerListenerService : WearableListenerService() {
                                 endTimestamp = endTimestamp,
                                 durationSeconds = duration,
                                 totalKcal = totalKcal,
-                                averageHeartRate = averageHR,
-                                maxHeartRate = maxHR,
                                 minSpO2 = minSpO2,
-                                bodyPart = bodyPart,
-                                heartRateRecoveryDrop = hrRecovery
+                                bodyPart = bodyPart
                             )
                         )
 
@@ -87,11 +81,8 @@ class DataLayerListenerService : WearableListenerService() {
                                             put("endTimestamp", s.endTimestamp)
                                             put("durationSeconds", s.durationSeconds)
                                             put("totalKcal", s.totalKcal)
-                                            put("averageHeartRate", s.averageHeartRate)
-                                            put("maxHeartRate", s.maxHeartRate)
                                             put("minSpO2", s.minSpO2)
                                             put("bodyPart", s.bodyPart)
-                                            put("heartRateRecoveryDrop", s.heartRateRecoveryDrop)
 
                                             val setsArr = org.json.JSONArray()
                                             sSets.forEach { set ->

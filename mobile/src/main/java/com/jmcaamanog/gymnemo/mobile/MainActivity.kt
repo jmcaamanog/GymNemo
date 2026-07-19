@@ -321,11 +321,6 @@ fun SessionCard(session: WorkoutSessionEntity, sets: List<WorkoutSetEntity>) {
                             fontSize = 18.sp,
                             color = Color.White
                         )
-                        Text(
-                            text = "${session.averageHeartRate} BPM prom",
-                            fontSize = 11.sp,
-                            color = Color.Gray
-                        )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
@@ -650,12 +645,7 @@ fun ObjetivosTab(sessions: List<WorkoutSessionEntity>) {
     val targetMinutes = 120f
 
     // Calcular frecuencia cardíaca promedio de la semana para el latido
-    val avgHeartRate = if (thisWeekSessions.isNotEmpty()) {
-        val validHRs = thisWeekSessions.map { it.averageHeartRate }.filter { it > 0 }
-        if (validHRs.isNotEmpty()) validHRs.average().toInt() else 72
-    } else {
-        72
-    }
+    val avgHeartRate = 72
 
     // Animación de pulso/latido orgánico en los anillos
     val pulseTransition = rememberInfiniteTransition(label = "pulse")
@@ -1155,11 +1145,8 @@ fun RespaldoTab(db: WorkoutDb) {
                                     endTimestamp = sessionObj.optLong("endTimestamp", sessionObj.getLong("timestamp")),
                                     durationSeconds = sessionObj.getLong("durationSeconds"),
                                     totalKcal = sessionObj.getInt("totalKcal"),
-                                    averageHeartRate = sessionObj.getInt("averageHeartRate"),
-                                    maxHeartRate = sessionObj.optInt("maxHeartRate", sessionObj.getInt("averageHeartRate")),
                                     minSpO2 = sessionObj.optInt("minSpO2", 98),
-                                    bodyPart = sessionObj.getString("bodyPart"),
-                                    heartRateRecoveryDrop = sessionObj.optInt("heartRateRecoveryDrop", 0)
+                                    bodyPart = sessionObj.getString("bodyPart")
                                 )
                             )
                             val setsArr = sessionObj.getJSONArray("sets")
@@ -1324,7 +1311,7 @@ fun exportToCsvFile(context: Context, sessions: List<WorkoutSessionEntity>, allS
         val writer = stream.bufferedWriter()
 
         // Escribir cabecera
-        writer.write("Fecha,Hora Inicio,Hora Fin,Zona Muscular,Ejercicio,Serie,Peso (KG),Reps,Descanso (s),Calorias,HR Promedio,HR Max,Oxigeno Min,Recuperacion (HRR)\n")
+        writer.write("Fecha,Hora Inicio,Hora Fin,Zona Muscular,Ejercicio,Serie,Peso (KG),Reps,Descanso (s),Calorias,Oxigeno Min\n")
 
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -1337,7 +1324,7 @@ fun exportToCsvFile(context: Context, sessions: List<WorkoutSessionEntity>, allS
 
             sessionSets.forEachIndexed { index, set ->
                 writer.write(
-                    "$dateStr,$startStr,$endStr,${session.bodyPart},${set.exerciseName},${index + 1},${set.weightKg},${set.reps},${set.restSeconds},${session.totalKcal},${session.averageHeartRate},${session.maxHeartRate},${session.minSpO2}%,-${session.heartRateRecoveryDrop} BPM\n"
+                    "$dateStr,$startStr,$endStr,${session.bodyPart},${set.exerciseName},${index + 1},${set.weightKg},${set.reps},${set.restSeconds},${session.totalKcal},${session.minSpO2}%\n"
                 )
             }
         }
@@ -1364,11 +1351,8 @@ fun exportToJsonFile(context: Context, sessions: List<WorkoutSessionEntity>, all
                 put("endTimestamp", session.endTimestamp)
                 put("durationSeconds", session.durationSeconds)
                 put("totalKcal", session.totalKcal)
-                put("averageHeartRate", session.averageHeartRate)
-                put("maxHeartRate", session.maxHeartRate)
                 put("minSpO2", session.minSpO2)
                 put("bodyPart", session.bodyPart)
-                put("heartRateRecoveryDrop", session.heartRateRecoveryDrop)
 
                 val setsArray = JSONArray()
                 sessionSets.forEach { set ->
@@ -1425,7 +1409,6 @@ fun exportToGpxFile(context: Context, session: WorkoutSessionEntity): File? {
         """.trimIndent() + "\n")
 
         val duration = session.durationSeconds
-        val avgHR = session.averageHeartRate
         val steps = (duration / 10).coerceAtLeast(1)
         for (i in 0..steps) {
             val pointTime = session.timestamp + (i * 10 * 1000)
@@ -1433,11 +1416,6 @@ fun exportToGpxFile(context: Context, session: WorkoutSessionEntity): File? {
             writer.write("""
                   <trkpt lat="0.0" lon="0.0">
                     <time>$timeStr</time>
-                    <extensions>
-                      <gpxtpx:TrackPointExtension>
-                        <gpxtpx:hr>$avgHR</gpxtpx:hr>
-                      </gpxtpx:TrackPointExtension>
-                    </extensions>
                   </trkpt>
             """.trimIndent() + "\n")
         }
@@ -1701,16 +1679,55 @@ fun AjustesTab(context: android.content.Context) {
             }
         }
 
-        // GitHub updates check card
+        // Card de Información y Actualizaciones
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Actualizaciones del Sistema", fontWeight = FontWeight.Bold, color = Color.White)
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Información de la App", fontWeight = FontWeight.Bold, color = Color.White)
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Versión", color = Color.Gray, fontSize = 13.sp)
+                        Text("v2.2.0", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Autor", color = Color.Gray, fontSize = 13.sp)
+                        Text("José Manuel Caamaño González", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Web Profesional", color = Color.Gray, fontSize = 13.sp)
+                        Text(
+                            text = "Visitar Web",
+                            color = Color(0xFFFF007F),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable {
+                                try {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://jmcaamanog.pages.dev"))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Actualizaciones del Sistema", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
                     Text("GymNemo comprueba actualizaciones en GitHub releases.", fontSize = 12.sp, color = Color.Gray)
-                    Spacer(modifier = Modifier.height(8.dp))
                     
                     var updateStatus by remember { mutableStateOf("Buscar Actualización") }
                     Button(

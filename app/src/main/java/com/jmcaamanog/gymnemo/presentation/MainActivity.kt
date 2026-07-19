@@ -76,7 +76,6 @@ import com.jmcaamanog.gymnemo.ui.screens.LogSetScreen
 import com.jmcaamanog.gymnemo.ui.screens.DashboardScreen
 import com.jmcaamanog.gymnemo.ui.screens.WorkoutPauseScreen
 import com.jmcaamanog.gymnemo.ui.screens.WorkoutCompleteScreen
-import com.jmcaamanog.gymnemo.ui.screens.HeartRateRecoveryScreen
 import com.jmcaamanog.gymnemo.viewmodel.SettingsViewModel
 import com.jmcaamanog.gymnemo.viewmodel.WorkoutViewModel
 import com.jmcaamanog.gymnemo.viewmodel.ViewModelFactory
@@ -457,18 +456,12 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                                     }
                                 }
                                 "finish" -> {
-                                    navController.navigate("hr_recovery")
+                                    workoutViewModel.stopAndSaveWorkout {
+                                        navController.navigate("workout_complete") {
+                                            popUpTo("main") { inclusive = false }
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                    )
-                }
-                composable("hr_recovery") {
-                    HeartRateRecoveryScreen(
-                        viewModel = workoutViewModel,
-                        onFinished = { drop ->
-                            workoutViewModel.stopAndSaveWorkout(heartRateRecoveryDrop = drop) {
-                                navController.popBackStack("train_category", false)
                             }
                         }
                     )

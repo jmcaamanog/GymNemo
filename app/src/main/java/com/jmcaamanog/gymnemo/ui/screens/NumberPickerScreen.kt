@@ -2,6 +2,7 @@ package com.jmcaamanog.gymnemo.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,112 +72,141 @@ fun NumberPickerScreen(
     }
 
     ScreenScaffold {
-        RadialThreeButtons(
-            topContent = {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .padding(top = 10.dp)
-                        .graphicsLayer(scaleX = pickerScale, scaleY = pickerScale)
-                ) {
-                    if (repsFor1Rm != null) {
-                        Box(
-                            modifier = Modifier
-                                .size(74.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black)
-                                .border(1.dp, Color.Gray.copy(alpha = 0.5f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            RadialThreeButtons(
+                topContent = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .padding(top = 10.dp)
+                            .graphicsLayer(scaleX = pickerScale, scaleY = pickerScale)
+                    ) {
+                        if (repsFor1Rm != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(74.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black)
+                                    .border(1.dp, Color.Gray.copy(alpha = 0.5f), CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "R: $repsFor1Rm",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.Gray,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "$currentValue kg",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val oneRepMax = currentValue * (1 + repsFor1Rm / 30.0)
+                            Text(
+                                text = "1RM: ${oneRepMax.toInt()} kg",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF00E5FF),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp
+                            )
+                            if (suggestOverload) {
+                                Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = "R: $repsFor1Rm",
+                                    text = "+2.5 KG SUGERIDO",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color.Gray,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "$currentValue kg",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
-                                    fontSize = 13.sp,
-                                    textAlign = TextAlign.Center
+                                    color = Color(0xFFFF007F),
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 8.sp
                                 )
                             }
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        val oneRepMax = currentValue * (1 + repsFor1Rm / 30.0)
-                        Text(
-                            text = "1RM: ${oneRepMax.toInt()} kg",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF00E5FF),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 9.sp
-                        )
-                        if (suggestOverload) {
-                            Spacer(modifier = Modifier.height(1.dp))
+                        } else {
                             Text(
-                                text = "+2.5 KG SUGERIDO",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFFF007F),
-                                fontWeight = FontWeight.Black,
-                                fontSize = 8.sp
+                                text = currentValue.toString(),
+                                style = MaterialTheme.typography.displayMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White,
+                                fontSize = 32.sp
+                            )
+                            Text(
+                                text = label.lowercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.Gray
                             )
                         }
-                    } else {
-                        Text(
-                            text = currentValue.toString(),
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
-                            fontSize = 32.sp
-                        )
-                        Text(
-                            text = label.lowercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.Gray
-                        )
+                    }
+                },
+                onTopClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    onValueSelected(currentValue)
+                },
+                bottomLeftContent = {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_subir),
+                        contentDescription = "Incrementar",
+                        modifier = Modifier.fillMaxSize(0.5f),
+                        tint = Color.White
+                    )
+                },
+                onBottomLeftClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                    if (currentValue + step <= range.last) {
+                        currentValue += step
+                    }
+                },
+                bottomRightContent = {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_bajar),
+                        contentDescription = "Decrementar",
+                        modifier = Modifier.fillMaxSize(0.5f),
+                        tint = Color.White
+                    )
+                },
+                onBottomRightClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                    if (currentValue - step >= range.first) {
+                        currentValue -= step
                     }
                 }
-            },
-            onTopClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                onValueSelected(currentValue)
-            },
-            bottomLeftContent = {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_subir),
-                    contentDescription = "Incrementar",
-                    modifier = Modifier.fillMaxSize(0.5f),
-                    tint = Color.White
+            )
+
+            // Botón central OK verde circular
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF39FF14)) // Verde Neón
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onValueSelected(currentValue)
+                    }
+                    .align(Alignment.Center),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "OK",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.Black,
+                    fontSize = 9.sp
                 )
-            },
-            onBottomLeftClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                if (currentValue + step <= range.last) {
-                    currentValue += step
-                }
-            },
-            bottomRightContent = {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_bajar),
-                    contentDescription = "Decrementar",
-                    modifier = Modifier.fillMaxSize(0.5f),
-                    tint = Color.White
-                )
-            },
-            onBottomRightClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                if (currentValue - step >= range.first) {
-                    currentValue -= step
-                }
             }
-        )
+        }
     }
 }

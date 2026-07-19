@@ -50,11 +50,8 @@ class WorkoutRepository(
                 dataMap.putLong("endTimestamp", session.endTimestamp)
                 dataMap.putLong("duration", session.durationSeconds)
                 dataMap.putInt("totalKcal", session.totalKcal)
-                dataMap.putInt("averageHR", session.averageHeartRate)
-                dataMap.putInt("maxHR", session.maxHeartRate)
                 dataMap.putInt("minSpO2", session.minSpO2)
                 dataMap.putString("bodyPart", session.bodyPart)
-                dataMap.putInt("hrRecovery", session.heartRateRecoveryDrop)
 
                 // Formato simple de series: "nombre:peso:reps:tempo;nombre:peso:reps:tempo"
                 val setsStr = sets.joinToString(";") { "${it.exerciseName}:${it.weightKg}:${it.reps}:${it.tempo}" }

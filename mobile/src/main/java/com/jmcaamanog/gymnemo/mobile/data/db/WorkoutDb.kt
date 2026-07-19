@@ -20,11 +20,8 @@ data class WorkoutSessionEntity(
     val endTimestamp: Long = 0,
     val durationSeconds: Long,
     val totalKcal: Int,
-    val averageHeartRate: Int,
-    val maxHeartRate: Int = 0,
     val minSpO2: Int = 98,
-    val bodyPart: String,
-    val heartRateRecoveryDrop: Int = 0
+    val bodyPart: String
 )
 
 @Entity(
@@ -73,7 +70,7 @@ interface WorkoutDao {
     fun getDistinctExercises(): Flow<List<String>>
 }
 
-@Database(entities = [WorkoutSessionEntity::class, WorkoutSetEntity::class], version = 4, exportSchema = false)
+@Database(entities = [WorkoutSessionEntity::class, WorkoutSetEntity::class], version = 5, exportSchema = false)
 abstract class WorkoutDb : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
 

@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -139,53 +137,7 @@ fun ActiveWorkoutScreen(
         }
     }
 
-    // Animación de latido para el corazón (desactivada en modo ambiente)
-    val infiniteTransition = rememberInfiniteTransition(label = "latido")
-    val animatedHeartScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
-        animationSpec = InfiniteRepeatableSpec(
-            animation = tween(durationMillis = 500),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "escalaCorazon"
-    )
-    val heartScale = if (isAmbientMode) 1.0f else animatedHeartScale
-    val heartColor = if (isAmbientMode) Color.Gray else Color(0xFFFF2E56)
     val stopButtonColor = if (isAmbientMode) Color.DarkGray else Color(0xFFFF2E56)
-
-    // Alerta de Ritmo Cardíaco Límite (85% de 220 - edad)
-    val maxHR = 220 - state.birthYear
-    val limitHR = (maxHR * 0.85).toInt()
-    val hrAlertActive = !isAmbientMode && state.heartRate > limitHR
-
-    val alertBgColor by infiniteTransition.animateColor(
-        initialValue = Color.Black,
-        targetValue = Color(0xFF6B0000),
-        animationSpec = InfiniteRepeatableSpec(
-            animation = tween(durationMillis = 500),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alertColor"
-    )
-    val backgroundColor = if (hrAlertActive) alertBgColor else Color.Black
-
-    // Resplandor Neon por Frecuencia Cardíaca
-    val neonGlowColor = when {
-        state.heartRate >= 140 -> Color(0xFFFF007F) // Magenta
-        state.heartRate >= 120 -> Color(0xFFFFEB3B) // Yellow
-        else -> Color(0xFF00E5FF) // Cyan
-    }
-    val neonGlowPulse by infiniteTransition.animateFloat(
-        initialValue = 0.1f,
-        targetValue = 0.6f,
-        animationSpec = InfiniteRepeatableSpec(
-            animation = tween(durationMillis = 800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowPulse"
-    )
-    val borderOpacity = if (isAmbientMode) 0f else neonGlowPulse
 
     // Ritmo/Tempo dinámico (guía visual de 4 segundos)
     val phaseTime = (state.durationSeconds % 4L).toInt()
@@ -200,24 +152,15 @@ fun ActiveWorkoutScreen(
         else -> Color(0xFFFF007F) // Magenta
     }
 
-    LaunchedEffect(hrAlertActive) {
-        if (hrAlertActive) {
-            while (true) {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                delay(1000)
-            }
-        }
-    }
-
     ScreenScaffold {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundColor)
+                .background(Color.Black)
                 .border(
                     width = 4.dp,
                     brush = Brush.radialGradient(
-                        colors = listOf(Color.Transparent, neonGlowColor.copy(alpha = borderOpacity)),
+                        colors = listOf(Color.Transparent, Color(0xFF00E5FF).copy(alpha = 0.2f)),
                         radius = 280f
                     ),
                     shape = CircleShape
@@ -285,33 +228,9 @@ fun ActiveWorkoutScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // 3. Ritmo Cardíaco (BPM)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = "Pulsaciones",
-                        tint = heartColor,
-                        modifier = Modifier
-                            .size(14.dp)
-                            .graphicsLayer(scaleX = heartScale, scaleY = heartScale)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${state.heartRate} BPM",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
                 Spacer(modifier = Modifier.weight(1f))
 
-                // 4. Botón de Stop al borde inferior (a unos px del borde)
+                // 4. Botón de Stop al borde inferior
                 Button(
                     onClick = {
                         if (!isAmbientMode) {
