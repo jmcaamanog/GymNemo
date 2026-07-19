@@ -154,9 +154,10 @@ fun sendWorkoutToGoogleSheets(context: Context, session: WorkoutSessionEntity, s
                 })
             }
 
-            // Enviar via POST con parámetros form-urlencoded
-            // (Google Apps Script maneja mejor esto que Content-Type: application/json con redirects)
-            val postData = mapOf(
+            // Usar GET con parámetros en la URL
+            // Google Apps Script siempre hace redirect 302 en POST → al seguirlo se pierde el body.
+            // Con GET los parámetros van en la URL y sobreviven al redirect sin problemas.
+            val params = mapOf(
                 "timestamp" to session.timestamp.toString(),
                 "date" to dateStr,
                 "startTime" to startStr,
@@ -166,33 +167,27 @@ fun sendWorkoutToGoogleSheets(context: Context, session: WorkoutSessionEntity, s
                 "bodyPart" to session.bodyPart,
                 "sets" to setsArray.toString()
             )
-
-            val postBody = postData.entries.joinToString("&") {
+            val queryString = params.entries.joinToString("&") {
                 "${java.net.URLEncoder.encode(it.key, "UTF-8")}=${java.net.URLEncoder.encode(it.value, "UTF-8")}"
             }
+            val fullUrl = if (urlStr.contains("?")) "$urlStr&$queryString" else "$urlStr?$queryString"
 
-            val url = URL(urlStr)
+            val url = URL(fullUrl)
             val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.doOutput = true
+            conn.requestMethod = "GET"
             conn.instanceFollowRedirects = true
-            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
             conn.connectTimeout = 15000
             conn.readTimeout = 15000
-
-            conn.outputStream.use { os ->
-                os.write(postBody.toByteArray(Charsets.UTF_8))
-            }
+            conn.connect()
 
             val responseCode = conn.responseCode
-            android.util.Log.d("GymNemo", "Sheets response: $responseCode")
+            android.util.Log.d("GymNemo", "Sheets GET response: $responseCode")
             if (responseCode in 200..399) {
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(context, "¡Entreno exportado a Google Sheets!", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                val errorText = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                android.util.Log.e("GymNemo", "Sheets error: $errorText")
+                android.util.Log.e("GymNemo", "Sheets error code: $responseCode")
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(context, "Error Sheets: código $responseCode", Toast.LENGTH_LONG).show()
                 }
