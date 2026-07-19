@@ -7,3 +7,7 @@ build/
 captures/
 .externalNativeBuild/
 .cxx/
+INSTRUCCIONES/
+IDEAS_PERSONALES/
+.kotlin/
+
