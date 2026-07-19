@@ -3,6 +3,7 @@ package com.jmcaamanog.gymnemo.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,17 +64,18 @@ fun WorkoutPauseScreen(
     onRepeatClick: () -> Unit,
     onRepeatLongClick: () -> Unit,
     onNewSetClick: () -> Unit,
+    onCenterTimerClick: () -> Unit,
     onFinishClick: () -> Unit
 ) {
     val state by viewModel.workoutState.collectAsState()
     val haptic = LocalHapticFeedback.current
 
-    // Temporizador de pausa positivo
-    var pauseSeconds by remember { mutableLongStateOf(0L) }
+    // Temporizador de descanso persistente
+    var pauseSeconds by remember { mutableLongStateOf((System.currentTimeMillis() - viewModel.restStartTime) / 1000) }
     LaunchedEffect(Unit) {
         while (true) {
-            delay(1000)
-            pauseSeconds++
+            delay(500)
+            pauseSeconds = (System.currentTimeMillis() - viewModel.restStartTime) / 1000
         }
     }
 
@@ -147,33 +149,7 @@ fun WorkoutPauseScreen(
 
     val timerColor = if (pauseSeconds >= targetRest) Color(0xFF39FF14) else Color(0xFF00E5FF)
 
-    // Detención e hipoxia (oxígeno por debajo del 92%)
-    val hypoxiaActive = state.spo2 < 92
-    val hypoxiaScale by animateFloatAsState(
-        targetValue = if (hypoxiaActive) 1f else 0f,
-        animationSpec = tween(durationMillis = 800),
-        label = "hypoxiaScale"
-    )
-
-    val infiniteTransition = rememberInfiniteTransition(label = "pauseWave")
-    val wavePhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * Math.PI).toFloat(),
-        animationSpec = InfiniteRepeatableSpec(
-            animation = tween(durationMillis = 1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "wavePhase"
-    )
-    val liquidLevel = ((98f - state.spo2.toFloat()) / 8f).coerceIn(0f, 1f)
-
-    LaunchedEffect(hypoxiaActive) {
-        if (hypoxiaActive) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            delay(600)
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        }
-    }
+    val isCardio = state.exerciseName == "CARRERA" || state.exerciseName == "CARRERA GYM"
 
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -197,16 +173,16 @@ fun WorkoutPauseScreen(
                 topContent = {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(top = 10.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Repetir Serie",
+                            contentDescription = if (isCardio) "Seguir Carrera" else "Repetir Serie",
                             modifier = Modifier.size(24.dp),
                             tint = Color(0xFF39FF14) // Verde Neón
                         )
                         Text(
-                            text = "REPETIR",
+                            text = if (isCardio) "SEGUIR" else "REPETIR",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
@@ -223,33 +199,37 @@ fun WorkoutPauseScreen(
                     onRepeatLongClick()
                 },
                 bottomLeftContent = {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(bottom = 10.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_ejercicio_brazo),
-                            contentDescription = "Nueva Serie",
-                            modifier = Modifier.size(24.dp),
-                            tint = Color(0xFF00E5FF) // Cyan
-                        )
-                        Text(
-                            text = "NUEVA",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                    if (!isCardio) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_ejercicio_brazo),
+                                contentDescription = "Nuevo Ejercicio",
+                                modifier = Modifier.size(24.dp),
+                                tint = Color(0xFF00E5FF) // Cyan
+                            )
+                            Text(
+                                text = "NUEVO",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 },
                 onBottomLeftClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onNewSetClick()
+                    if (!isCardio) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onNewSetClick()
+                    }
                 },
                 bottomRightContent = {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(bottom = 10.dp)
+                        modifier = Modifier.padding(bottom = 2.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Stop,
@@ -269,7 +249,8 @@ fun WorkoutPauseScreen(
                 onBottomRightClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onFinishClick()
-                }
+                },
+                iconDistanceFactor = 0.68f
             )
             } // Fin de if (!isAmbientMode)
 
@@ -291,7 +272,11 @@ fun WorkoutPauseScreen(
                         .size(74.dp)
                         .clip(CircleShape)
                         .background(Color.Black)
-                        .border(1.dp, Color.Gray.copy(alpha = 0.5f), CircleShape),
+                        .border(1.dp, Color.Gray.copy(alpha = 0.5f), CircleShape)
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                            onCenterTimerClick()
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -316,71 +301,6 @@ fun WorkoutPauseScreen(
                                 textAlign = TextAlign.Center
                             )
                         }
-                    }
-                }
-            }
-
-            // Superposición circular de alerta de hipoxia (con ola de líquido azul celeste Canvas que asciende/desciende)
-            if (hypoxiaScale > 0.01f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .align(Alignment.Center)
-                        .graphicsLayer(
-                            scaleX = hypoxiaScale,
-                            scaleY = hypoxiaScale,
-                            clip = true,
-                            shape = CircleShape
-                        )
-                        .background(Color.Black)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val canvasWidth = size.width
-                        val canvasHeight = size.height
-                        val path = Path().apply {
-                            val waveHeight = 12f
-                            val liquidY = canvasHeight * (1f - liquidLevel)
-                            moveTo(0f, canvasHeight)
-                            lineTo(0f, liquidY)
-                            for (x in 0..canvasWidth.toInt() step 6) {
-                                val y = liquidY + waveHeight * kotlin.math.sin(x * 0.035f + wavePhase).toFloat()
-                                lineTo(x.toFloat(), y)
-                            }
-                            lineTo(canvasWidth, canvasHeight)
-                            close()
-                        }
-                        drawPath(path, Color(0xFF00E5FF))
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "🚨 HIPOXIA",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.Black,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text(
-                            text = "${state.spo2}% O₂",
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.Black,
-                            fontSize = 24.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text(
-                            text = "Respira profundo\nEspera recuperación",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.DarkGray,
-                            textAlign = TextAlign.Center
-                        )
                     }
                 }
             }

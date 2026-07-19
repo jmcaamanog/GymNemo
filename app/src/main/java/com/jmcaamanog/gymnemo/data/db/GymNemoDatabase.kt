@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [WorkoutSession::class, WorkoutSet::class], version = 5, exportSchema = false)
+@Database(entities = [WorkoutSession::class, WorkoutSet::class], version = 6, exportSchema = false)
 abstract class GymNemoDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
 

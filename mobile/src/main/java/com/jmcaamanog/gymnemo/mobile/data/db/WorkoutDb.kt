@@ -39,8 +39,7 @@ data class WorkoutSetEntity(
     val exerciseName: String,
     val weightKg: Float,
     val reps: Int,
-    val restSeconds: Int,
-    val tempo: String = "3-0-1-0"
+    val restSeconds: Int
 )
 
 @Dao
@@ -70,7 +69,7 @@ interface WorkoutDao {
     fun getDistinctExercises(): Flow<List<String>>
 }
 
-@Database(entities = [WorkoutSessionEntity::class, WorkoutSetEntity::class], version = 5, exportSchema = false)
+@Database(entities = [WorkoutSessionEntity::class, WorkoutSetEntity::class], version = 6, exportSchema = false)
 abstract class WorkoutDb : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
 

@@ -17,7 +17,7 @@ fun BodySettingsScreen(
     onNavigateFrequency: () -> Unit,
     onNavigateKcal: () -> Unit
 ) {
-    ScreenScaffold {
+    ScreenScaffold(timeText = {}) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Mitad Superior: Reloj de Arena
             SilentButton(

@@ -9,7 +9,7 @@ android {
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.jmcaamanog.gymnemo.mobile"
+        applicationId "com.jmcaamanog.gymnemo"
         minSdk 26
         targetSdk 36
         versionCode 1

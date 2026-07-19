@@ -139,32 +139,11 @@ fun ActiveWorkoutScreen(
 
     val stopButtonColor = if (isAmbientMode) Color.DarkGray else Color(0xFFFF2E56)
 
-    // Ritmo/Tempo dinámico (guía visual de 4 segundos)
-    val phaseTime = (state.durationSeconds % 4L).toInt()
-    val tempoPhaseText = when (phaseTime) {
-        0, 1 -> "ECC: BAJAR (2s)"
-        2 -> "ISO: PAUSA (1s)"
-        else -> "CON: SUBIR (1s)"
-    }
-    val tempoColor = when (phaseTime) {
-        0, 1 -> Color(0xFF00E5FF) // Cyan
-        2 -> Color(0xFFFFEB3B) // Yellow
-        else -> Color(0xFFFF007F) // Magenta
-    }
-
     ScreenScaffold {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
-                .border(
-                    width = 4.dp,
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color.Transparent, Color(0xFF00E5FF).copy(alpha = 0.2f)),
-                        radius = 280f
-                    ),
-                    shape = CircleShape
-                ),
+                .background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -175,20 +154,34 @@ fun ActiveWorkoutScreen(
             ) {
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // 1. Temporizador en la parte superior
+                // 1. Temporizador en la parte superior (más pequeño)
                 Text(
                     text = timeString,
-                    style = MaterialTheme.typography.displayMedium,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = Color.White,
+                    fontSize = 20.sp
                 )
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                // 2. Nombre del ejercicio en el centro (parte más ancha del círculo)
+                // 2. Número de serie/repetición actual en grande en el centro
+                val currentSetNumber = state.loggedSets.count { it.exerciseName == state.exerciseName } + 1
+                Text(
+                    text = currentSetNumber.toString(),
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF00E5FF),
+                    fontSize = 54.sp,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // 3. Nombre del ejercicio
                 Text(
                     text = state.exerciseName,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
@@ -197,8 +190,8 @@ fun ActiveWorkoutScreen(
                 )
 
                 if (!isAmbientMode) {
-                    Spacer(modifier = Modifier.height(1.dp))
                     if (state.exerciseName == "CARRERA") {
+                        Spacer(modifier = Modifier.height(1.dp))
                         Text(
                             text = "VM: ${String.format("%.1f", avgSpeed)} km/h | ALT: ${currentAltitude.toInt()}m",
                             style = MaterialTheme.typography.labelSmall,
@@ -208,19 +201,11 @@ fun ActiveWorkoutScreen(
                             textAlign = TextAlign.Center
                         )
                     } else if (state.exerciseName == "CARRERA GYM") {
+                        Spacer(modifier = Modifier.height(1.dp))
                         Text(
                             text = "CINTA DE CORRER (GYM)",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFFFFEB3B),
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 8.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    } else {
-                        Text(
-                            text = tempoPhaseText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = tempoColor,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 8.sp,
                             textAlign = TextAlign.Center

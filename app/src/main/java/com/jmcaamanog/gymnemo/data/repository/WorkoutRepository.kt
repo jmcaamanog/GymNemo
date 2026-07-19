@@ -31,16 +31,7 @@ class WorkoutRepository(
         }
     }
 
-    suspend fun syncUnsyncedSessions() {
-        val unsynced = workoutDao.getUnsyncedSessions()
-        unsynced.forEach { session ->
-            val sets = workoutDao.getSetsForSessionDirect(session.sessionId)
-            val success = sendSessionToMobile(session, sets)
-            if (success) {
-                workoutDao.updateSessionSynced(session.sessionId, true)
-            }
-        }
-    }
+
 
     private suspend fun sendSessionToMobile(session: WorkoutSession, sets: List<WorkoutSet>): Boolean {
         return try {
@@ -50,11 +41,10 @@ class WorkoutRepository(
                 dataMap.putLong("endTimestamp", session.endTimestamp)
                 dataMap.putLong("duration", session.durationSeconds)
                 dataMap.putInt("totalKcal", session.totalKcal)
-                dataMap.putInt("minSpO2", session.minSpO2)
                 dataMap.putString("bodyPart", session.bodyPart)
 
-                // Formato simple de series: "nombre:peso:reps:tempo;nombre:peso:reps:tempo"
-                val setsStr = sets.joinToString(";") { "${it.exerciseName}:${it.weightKg}:${it.reps}:${it.tempo}" }
+                // Formato simple de series: "nombre:peso:reps;nombre:peso:reps"
+                val setsStr = sets.joinToString(";") { "${it.exerciseName}:${it.weightKg}:${it.reps}" }
                 dataMap.putString("setsJson", setsStr)
             }
             val putDataReq = putDataMapReq.asPutDataRequest().setUrgent()
@@ -92,5 +82,19 @@ class WorkoutRepository(
 
     suspend fun hasTrainedExerciseSince(exerciseName: String, since: Long): Boolean {
         return workoutDao.hasTrainedExerciseSince(exerciseName, since)
+    }
+
+    suspend fun syncUnsyncedSessions(): Int {
+        val unsynced = workoutDao.getUnsyncedSessions()
+        var count = 0
+        unsynced.forEach { session ->
+            val sets = workoutDao.getSetsForSessionDirect(session.sessionId)
+            val success = sendSessionToMobile(session, sets)
+            if (success) {
+                workoutDao.updateSessionSynced(session.sessionId, true)
+                count++
+            }
+        }
+        return count
     }
 }

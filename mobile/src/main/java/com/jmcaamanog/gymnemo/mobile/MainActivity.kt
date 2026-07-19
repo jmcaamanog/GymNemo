@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,6 +23,7 @@ import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
@@ -63,8 +65,19 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val db = WorkoutDb.getDatabase(applicationContext)
         val startTab = intent.getStringExtra("startTab") ?: "historial"
+        // Registrar listener para recibir confirmación de sincronización
+        val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(this)
+        messageClient.addListener { event ->
+            if (event.path == "/sync_result") {
+                val count = String(event.data).toIntOrNull() ?: 0
+                runOnUiThread {
+                    Toast.makeText(this, "¡Sincronización completada! $count entrenos recibidos.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
 
         setContent {
             MaterialTheme(
@@ -231,6 +244,252 @@ fun HistorialTab(sessions: List<WorkoutSessionEntity>, allSets: List<WorkoutSetE
                     Column {
                         Text("Tiempo Activo", fontSize = 12.sp, color = Color.Gray)
                         Text("${totalTimeMin}m", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(0xFF00E5FF))
+                    }
+                }
+            }
+        }
+
+        // Tarjeta de Registro Manual
+        item {
+            var showManualRegister by remember { mutableStateOf(false) }
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showManualRegister = !showManualRegister },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.Add, contentDescription = "Añadir", tint = Color(0xFF00E5FF))
+                            Text("REGISTRO MANUAL", fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                        Icon(
+                            imageVector = if (showManualRegister) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Expandir/Contraer",
+                            tint = Color.Gray
+                        )
+                    }
+
+                    if (showManualRegister) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        var bodyPart by remember { mutableStateOf("brazo") }
+                        val customPrefs = LocalContext.current.getSharedPreferences("custom_exercises_prefs", android.content.Context.MODE_PRIVATE)
+                        
+                        val brazoExercises = remember {
+                            val base = listOf("Curl Bíceps Mancuerna", "Extensión Tríceps Polea", "Curl Martillo", "Press Francés Barra", "Curl Concentrado", "Copa Tríceps Mancuerna", "Fondos Tríceps")
+                            val custom = customPrefs.getStringSet("brazo", emptySet())?.toList() ?: emptyList()
+                            base + custom
+                        }
+                        val piernaExercises = remember {
+                            val base = listOf("CARRERA", "CARRERA GYM", "Sentadilla con Barra", "Prensa de Pierna", "Extensión de Cuádriceps", "Curl Femoral Tumbado", "Zancadas Mancuerna", "Peso Muerto Rumano", "Elevación de Gemelos")
+                            val custom = customPrefs.getStringSet("pierna", emptySet())?.toList() ?: emptyList()
+                            base + custom
+                        }
+                        val torsoExercises = remember {
+                            val base = listOf("Press de Banca Plano", "Dominadas Pronas", "Remo con Barra", "Press Militar Mancuerna", "Aperturas de Pecho", "Pullover Mancuerna", "Cruce de Poleas")
+                            val custom = customPrefs.getStringSet("torso", emptySet())?.toList() ?: emptyList()
+                            base + custom
+                        }
+
+                        val exercisesList = when (bodyPart) {
+                            "brazo" -> brazoExercises
+                            "pierna" -> piernaExercises
+                            else -> torsoExercises
+                        }
+
+                        var selectedExercise by remember(bodyPart) { mutableStateOf(exercisesList.firstOrNull() ?: "") }
+                        val temporarySets = remember { mutableStateListOf<Pair<Int, Float>>() }
+                        
+                        var inputReps by remember { mutableStateOf("10") }
+                        var inputWeight by remember { mutableStateOf("20") }
+
+                        Text("Parte del Cuerpo:", color = Color.Gray, fontSize = 12.sp)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("brazo", "pierna", "torso").forEach { part ->
+                                FilterChip(
+                                    selected = bodyPart == part,
+                                    onClick = { 
+                                        bodyPart = part
+                                        temporarySets.clear() 
+                                    },
+                                    label = { Text(part.replaceFirstChar { it.uppercase() }) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = when (part) {
+                                            "brazo" -> Color(0xFF00E5FF)
+                                            "pierna" -> Color(0xFFFF007F)
+                                            else -> Color(0xFFFFEB3B)
+                                        },
+                                        selectedLabelColor = Color.Black
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text("Ejercicio:", color = Color.Gray, fontSize = 12.sp)
+                        var showExercisesMenu by remember { mutableStateOf(false) }
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = { showExercisesMenu = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF222222)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(selectedExercise, color = Color.White)
+                            }
+                            DropdownMenu(
+                                expanded = showExercisesMenu,
+                                onDismissRequest = { showExercisesMenu = false },
+                                modifier = Modifier.fillMaxWidth(0.9f).background(Color(0xFF1E1E1E))
+                            ) {
+                                exercisesList.forEach { exercise ->
+                                    DropdownMenuItem(
+                                        text = { Text(exercise, color = Color.White) },
+                                        onClick = {
+                                            selectedExercise = exercise
+                                            showExercisesMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text("Añadir Series:", color = Color.Gray, fontSize = 12.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = inputReps,
+                                onValueChange = { inputReps = it },
+                                label = { Text("Reps") },
+                                singleLine = true,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF00E5FF),
+                                    unfocusedBorderColor = Color.DarkGray
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = inputWeight,
+                                onValueChange = { inputWeight = it },
+                                label = { Text("Peso (Kg)") },
+                                singleLine = true,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF00E5FF),
+                                    unfocusedBorderColor = Color.DarkGray
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(
+                                onClick = {
+                                    val r = inputReps.toIntOrNull() ?: 10
+                                    val w = inputWeight.toFloatOrNull() ?: 20f
+                                    temporarySets.add(Pair(r, w))
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Text("+", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            }
+                        }
+
+                        if (temporarySets.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Series Añadidas:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            temporarySets.forEachIndexed { index, pair ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Serie ${index + 1}: ${pair.first} Reps @ ${pair.second} Kg", color = Color.Gray, fontSize = 13.sp)
+                                    Text(
+                                        "Eliminar",
+                                        color = Color(0xFFFF007F),
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.clickable { temporarySets.removeAt(index) }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val contextForSave = LocalContext.current
+                        val coroutineScope = rememberCoroutineScope()
+                        
+                        Button(
+                            onClick = {
+                                if (temporarySets.isEmpty()) {
+                                    Toast.makeText(contextForSave, "Añade al menos una serie primero", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    val now = System.currentTimeMillis()
+                                    val sessionId = db.workoutDao().insertSession(
+                                        WorkoutSessionEntity(
+                                            timestamp = now,
+                                            endTimestamp = now + (15 * 60 * 1000),
+                                            durationSeconds = (15 * 60).toLong(),
+                                            totalKcal = temporarySets.size * 10,
+                                            bodyPart = bodyPart
+                                        )
+                                    )
+                                    
+                                    val setsList = mutableListOf<WorkoutSetEntity>()
+                                    temporarySets.forEach { pair ->
+                                        val setEntity = WorkoutSetEntity(
+                                            sessionId = sessionId,
+                                            exerciseName = selectedExercise,
+                                            weightKg = pair.second,
+                                            reps = pair.first,
+                                            restSeconds = 90
+                                        )
+                                        db.workoutDao().insertSet(setEntity)
+                                        setsList.add(setEntity)
+                                    }
+
+                                    val sessionEntity = WorkoutSessionEntity(
+                                        sessionId = sessionId,
+                                        timestamp = now,
+                                        endTimestamp = now + (15 * 60 * 1000),
+                                        durationSeconds = (15 * 60).toLong(),
+                                        totalKcal = temporarySets.size * 10,
+                                        bodyPart = bodyPart
+                                    )
+                                    com.jmcaamanog.gymnemo.mobile.data.sendWorkoutToGoogleSheets(contextForSave, sessionEntity, setsList)
+
+                                    launch(Dispatchers.Main) {
+                                        Toast.makeText(contextForSave, "¡Entrenamiento registrado con éxito!", Toast.LENGTH_SHORT).show()
+                                        temporarySets.clear()
+                                        showManualRegister = false
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF39FF14), contentColor = Color.Black),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("GUARDAR REGISTRO", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -631,22 +890,6 @@ fun ObjetivosTab(sessions: List<WorkoutSessionEntity>) {
     val targetKcal = 900f
     val targetMinutes = 120f
 
-    // Calcular frecuencia cardíaca promedio de la semana para el latido
-    val avgHeartRate = 72
-
-    // Animación de pulso/latido orgánico en los anillos
-    val pulseTransition = rememberInfiniteTransition(label = "pulse")
-    val pulsePeriod = (60000 / avgHeartRate).coerceIn(400, 2000)
-    val pulseScale by pulseTransition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.04f,
-        animationSpec = InfiniteRepeatableSpec(
-            animation = tween(durationMillis = pulsePeriod / 2, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseScale"
-    )
-
     // Entrenos por grupo muscular
     val hasBrazo = thisWeekSessions.any { it.bodyPart.lowercase() == "brazo" }
     val hasTorso = thisWeekSessions.any { it.bodyPart.lowercase() == "torso" }
@@ -674,7 +917,6 @@ fun ObjetivosTab(sessions: List<WorkoutSessionEntity>) {
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161616)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer(scaleX = pulseScale, scaleY = pulseScale)
                     .padding(vertical = 8.dp)
             ) {
                 Row(
@@ -744,14 +986,6 @@ fun ObjetivosTab(sessions: List<WorkoutSessionEntity>) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Min: ${weekMinutes}/${targetMinutes.toInt()}", color = Color.LightGray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Pulso: $avgHeartRate BPM",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.Gray,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
                 }
             }
@@ -1132,7 +1366,6 @@ fun RespaldoTab(db: WorkoutDb) {
                                     endTimestamp = sessionObj.optLong("endTimestamp", sessionObj.getLong("timestamp")),
                                     durationSeconds = sessionObj.getLong("durationSeconds"),
                                     totalKcal = sessionObj.getInt("totalKcal"),
-                                    minSpO2 = sessionObj.optInt("minSpO2", 98),
                                     bodyPart = sessionObj.getString("bodyPart")
                                 )
                             )
@@ -1284,6 +1517,39 @@ fun RespaldoTab(db: WorkoutDb) {
                 }
             }
         }
+
+        // Card de Integración con Google Sheets
+        item {
+            val sheetsPrefs = remember { context.getSharedPreferences("google_sheets_prefs", android.content.Context.MODE_PRIVATE) }
+            val defaultUrl = "https://script.google.com/macros/s/AKfycbwASXMQJjYm5ge6L9w34mU5fr5fByC-Nrf9l1Iwtj-C8YcENW78a_4xBrpPV02N8ZdJ/exec"
+            var sheetsUrl by remember { mutableStateOf(sheetsPrefs.getString("sheets_url", defaultUrl) ?: defaultUrl) }
+
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Integración con Google Sheets", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Pega la URL de tu Web App de Google Apps Script para sincronizar tus entrenos automáticamente.", fontSize = 12.sp, color = Color.Gray)
+
+                    OutlinedTextField(
+                        value = sheetsUrl,
+                        onValueChange = {
+                            sheetsUrl = it
+                            sheetsPrefs.edit().putString("sheets_url", it).apply()
+                        },
+                        label = { Text("URL de Web App de Google Sheets") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00E5FF),
+                            focusedLabelColor = Color(0xFF00E5FF),
+                            unfocusedBorderColor = Color.DarkGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1298,7 +1564,7 @@ fun exportToCsvFile(context: Context, sessions: List<WorkoutSessionEntity>, allS
         val writer = stream.bufferedWriter()
 
         // Escribir cabecera
-        writer.write("Fecha,Hora Inicio,Hora Fin,Zona Muscular,Ejercicio,Serie,Peso (KG),Reps,Descanso (s),Calorias,Oxigeno Min\n")
+        writer.write("Fecha,Hora Inicio,Hora Fin,Zona Muscular,Ejercicio,Serie,Peso (KG),Reps,Descanso (s),Calorias\n")
 
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -1311,7 +1577,7 @@ fun exportToCsvFile(context: Context, sessions: List<WorkoutSessionEntity>, allS
 
             sessionSets.forEachIndexed { index, set ->
                 writer.write(
-                    "$dateStr,$startStr,$endStr,${session.bodyPart},${set.exerciseName},${index + 1},${set.weightKg},${set.reps},${set.restSeconds},${session.totalKcal},${session.minSpO2}%\n"
+                    "$dateStr,$startStr,$endStr,${session.bodyPart},${set.exerciseName},${index + 1},${set.weightKg},${set.reps},${set.restSeconds},${session.totalKcal}\n"
                 )
             }
         }
@@ -1338,7 +1604,6 @@ fun exportToJsonFile(context: Context, sessions: List<WorkoutSessionEntity>, all
                 put("endTimestamp", session.endTimestamp)
                 put("durationSeconds", session.durationSeconds)
                 put("totalKcal", session.totalKcal)
-                put("minSpO2", session.minSpO2)
                 put("bodyPart", session.bodyPart)
 
                 val setsArray = JSONArray()
@@ -1434,6 +1699,9 @@ fun AjustesTab(context: android.content.Context) {
     val heightInt = height.toInt()
     val weightInt = weight.toInt()
 
+    var showPersonalData by remember { mutableStateOf(false) }
+    val messageClient = remember { com.google.android.gms.wearable.Wearable.getMessageClient(context) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -1450,66 +1718,17 @@ fun AjustesTab(context: android.content.Context) {
             )
         }
 
-        // Sliders & Gender
+        // Peso Corporal (Siempre Visible)
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Indicadores Biológicos", fontWeight = FontWeight.Bold, color = Color.White)
-                    
-                    // Gender
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Género", color = Color.Gray, fontSize = 13.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = gender == "macho",
-                                onClick = {
-                                    gender = "macho"
-                                    prefs.edit().putString("gender", "macho").apply()
-                                },
-                                label = { Text("Macho") }
-                            )
-                            FilterChip(
-                                selected = gender == "hembra",
-                                onClick = {
-                                    gender = "hembra"
-                                    prefs.edit().putString("gender", "hembra").apply()
-                                },
-                                label = { Text("Hembra") }
-                            )
-                        }
-                    }
-
-                    // Height
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Tu Peso", fontWeight = FontWeight.Bold, color = Color.White)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Altura", color = Color.Gray, fontSize = 13.sp)
-                            Text("$heightInt cm", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
-                        }
-                        Slider(
-                            value = height,
-                            onValueChange = {
-                                height = it
-                                prefs.edit().putFloat("height", it).apply()
-                            },
-                            valueRange = 100f..230f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFF00E5FF),
-                                activeTrackColor = Color(0xFF00E5FF)
-                            )
-                        )
-                    }
-
-                    // Weight
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Peso", color = Color.Gray, fontSize = 13.sp)
+                            Text("Peso Corporal", color = Color.Gray, fontSize = 13.sp)
                             Text("$weightInt kg", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
                         }
                         Slider(
@@ -1525,25 +1744,161 @@ fun AjustesTab(context: android.content.Context) {
                             )
                         )
                     }
+                }
+            }
+        }
 
-                    // Birth Year
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Año de Nacimiento", color = Color.Gray, fontSize = 13.sp)
-                            Text("$birthYear", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
-                        }
-                        Slider(
-                            value = birthYear.toFloat(),
-                            onValueChange = {
-                                birthYear = it.toInt()
-                                prefs.edit().putInt("birthYear", it.toInt()).apply()
-                            },
-                            valueRange = 1940f..2020f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFF00E5FF),
-                                activeTrackColor = Color(0xFF00E5FF)
-                            )
+        // Datos Personales (Colapsable)
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showPersonalData = !showPersonalData },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Datos Personales (Género, Altura, Edad)", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+                        Icon(
+                            imageVector = if (showPersonalData) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Expandir/Contraer",
+                            tint = Color.Gray
                         )
+                    }
+
+                    if (showPersonalData) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            // Gender
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Género", color = Color.Gray, fontSize = 13.sp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    FilterChip(
+                                        selected = gender == "macho",
+                                        onClick = {
+                                            gender = "macho"
+                                            prefs.edit().putString("gender", "macho").apply()
+                                        },
+                                        label = { Text("Macho") }
+                                    )
+                                    FilterChip(
+                                        selected = gender == "hembra",
+                                        onClick = {
+                                            gender = "hembra"
+                                            prefs.edit().putString("gender", "hembra").apply()
+                                        },
+                                        label = { Text("Hembra") }
+                                    )
+                                }
+                            }
+
+                            // Height
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Altura", color = Color.Gray, fontSize = 13.sp)
+                                    Text("$heightInt cm", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = height,
+                                    onValueChange = {
+                                        height = it
+                                        prefs.edit().putFloat("height", it).apply()
+                                    },
+                                    valueRange = 100f..230f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = Color(0xFF00E5FF),
+                                        activeTrackColor = Color(0xFF00E5FF)
+                                    )
+                                )
+                            }
+
+                            // Birth Year
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Año de Nacimiento", color = Color.Gray, fontSize = 13.sp)
+                                    Text("$birthYear", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = birthYear.toFloat(),
+                                    onValueChange = {
+                                        birthYear = it.toInt()
+                                        prefs.edit().putInt("birthYear", it.toInt()).apply()
+                                    },
+                                    valueRange = 1940f..2020f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = Color(0xFF00E5FF),
+                                        activeTrackColor = Color(0xFF00E5FF)
+                                    )
+                                )
+                            }
+
+                            Button(
+                                onClick = { showPersonalData = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF39FF14), contentColor = Color.Black),
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            ) {
+                                Text("OK", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Card de Sincronización Forzada
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Sincronización manual", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Solicita al reloj conectado que envíe de inmediato todos los entrenamientos pendientes.", fontSize = 12.sp, color = Color.Gray)
+
+                    var syncStatus by remember { mutableStateOf("Forzar Sincronización") }
+                    Button(
+                        onClick = {
+                            syncStatus = "Solicitando..."
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                try {
+                                    val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(context)
+                                    val nodes = com.google.android.gms.tasks.Tasks.await(nodeClient.connectedNodes)
+                                    if (nodes.isEmpty()) {
+                                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                            Toast.makeText(context, "No hay ningún reloj conectado", Toast.LENGTH_SHORT).show()
+                                            syncStatus = "Forzar Sincronización"
+                                        }
+                                        return@launch
+                                    }
+                                    nodes.forEach { node ->
+                                        messageClient.sendMessage(node.id, "/request_sync", ByteArray(0))
+                                    }
+                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                        Toast.makeText(context, "Solicitud enviada al reloj...", Toast.LENGTH_SHORT).show()
+                                        kotlinx.coroutines.delay(2000)
+                                        syncStatus = "Forzar Sincronización"
+                                    }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                        syncStatus = "Forzar Sincronización"
+                                    }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(syncStatus, fontWeight = FontWeight.Bold)
                     }
                 }
             }

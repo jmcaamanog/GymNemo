@@ -20,12 +20,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import androidx.compose.runtime.remember
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.jmcaamanog.gymnemo.viewmodel.WorkoutViewModel
 
 @Composable
@@ -39,12 +44,12 @@ fun WorkoutCompleteScreen(
 
     val totalKcal = brazoKcal + piernaKcal + torsoKcal
 
-    ScreenScaffold {
+    ScreenScaffold(timeText = {}) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .padding(16.dp),
+                .padding(12.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -52,31 +57,66 @@ fun WorkoutCompleteScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "¡ENTRENO COMPLETADO!",
-                    style = MaterialTheme.typography.labelSmall,
+                    text = "¡COMPLETADO!",
+                    style = MaterialTheme.typography.titleMedium,
                     color = Color(0xFF39FF14), // Verde Neón
-                    fontWeight = FontWeight.ExtraBold,
-                    textAlign = TextAlign.Center
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                    fontSize = 16.sp
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
+                // Fecha
+                val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
                 Text(
-                    text = "Hoy has quemado",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = dateFormat.format(Date(viewModel.lastSessionStart.takeIf { it > 0 } ?: System.currentTimeMillis())),
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color.Gray,
-                    textAlign = TextAlign.Center
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
                 )
 
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Horas (Inicio / Fin)
+                val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+                val startStr = timeFormat.format(Date(viewModel.lastSessionStart.takeIf { it > 0 } ?: System.currentTimeMillis()))
+                val endStr = timeFormat.format(Date(viewModel.lastSessionEnd.takeIf { it > 0 } ?: System.currentTimeMillis()))
                 Text(
-                    text = "$totalKcal Kcal",
-                    style = MaterialTheme.typography.displayMedium,
+                    text = "$startStr / $endStr",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Tiempo total
+                val durationMin = viewModel.lastSessionDuration / 60
+                val durationSec = viewModel.lastSessionDuration % 60
+                val durationStr = String.format("%02d:%02d", durationMin, durationSec)
+                Text(
+                    text = durationStr,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 13.sp
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Kcal
+                Text(
+                    text = "${viewModel.lastSessionKcal} Kcal",
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    textAlign = TextAlign.Center
+                    fontSize = 14.sp
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Button(
                     onClick = onDone,
@@ -84,12 +124,12 @@ fun WorkoutCompleteScreen(
                         containerColor = Color(0xFF39FF14),
                         contentColor = Color.Black
                     ),
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Completar día",
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = "Completar",
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }

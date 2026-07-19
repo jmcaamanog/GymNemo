@@ -1,6 +1,11 @@
 # Comentarios de JMCG
 --------------------
+Listo! ya la tengo en el movil.
 
-Vamos a hacer una serie de mejoras, despues de haber probado en el reloj, ok?
-En la pantalla para escoger parte del ejercicio, en le centro hay un boton rojo, que pòne END. Localzia, ten presente su tamaño, propiedades, diseño y letrao 8tamaño, color...). En base a eso, quiero, en todas las pantallas del la aplciacion donde haya tres espacios (por ejemplo, determinar altura, determinar peso de persona,d eterminar año de nacimiento, dterminar numero de repeticiones ene un ejerccio, determinar peso del ejecicio...) tengan el mismo botón, en color verde, con un OK en el centro. Serña el elmento par confirmar el dato introducido, y, o bien volver a la pantalla nterior, o bien pasar a la siuguietne pantalla. Ent endido.
-No me interesa el registro de pulaciones,no le voy a sacar partido. asi que elimina de todos loados, tanto el resgistro, mostar en pantalla, mostarlo, almacenarlo, tenerlo presetne, etc....
+Sincrpiznias todo con Github para que se me actualice en adelante el movil con lo que vaas subiendoi? par verificar que funciona lo de buscar actualzaiicon.
+
+Pasa lo de Integracion de google sheets a la pestaña de rsplados en el movil, así vrificamos que funcioan las actulziaciones desde github.
+
+En el reloj, en la pantalla de dashboard (la que tiene el dashboard, ,una flecha hacia la izquierda, y la diana; puedes sustituir ese flecha por una antena comod wifi (algun icono provisional), y sera para forzar envio de datos almovil? algo que me perimta a mi maunalmente enviar al movil datos para sincornziar?
+
+En le movil, en historial, puedes añadir como una nueva tarjeta que sea REGISTRO? y nos permitira, meter de manera manuial ejercicios? esto es, para cuando no tenga reloj. que aprezcan las tres partes del cupero, escoger entre los ejerciciosq ue hay en cada una, seleccionar cuantas series, cuantas repeticiones enc ada serie, y cuantos jehrcicios ? como algo de añadir (con un +) e ir aladiendo, conun opk, y así queda. Se forzaraá que sea con el dia actual.

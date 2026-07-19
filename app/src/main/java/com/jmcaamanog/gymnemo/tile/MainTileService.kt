@@ -6,12 +6,14 @@ import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.DimensionBuilders
+import androidx.wear.protolayout.LayoutElementBuilders
+import androidx.wear.protolayout.ColorBuilders
 import androidx.wear.protolayout.material3.button
 import androidx.wear.protolayout.material3.materialScope
-import androidx.wear.protolayout.material3.primaryLayout
-import androidx.wear.protolayout.material3.text
 import androidx.wear.protolayout.material3.ButtonDefaults
 import androidx.wear.protolayout.material3.icon
+import androidx.wear.protolayout.material3.text
 import androidx.wear.protolayout.types.layoutString
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.RequestBuilders.ResourcesRequest
@@ -101,24 +103,65 @@ private fun tile(
         .setTileTimeline(
             TimelineBuilders.Timeline.fromLayoutElement(
                 materialScope(context, requestParams.deviceConfiguration) {
-                    primaryLayout(
-                        mainSlot = {
-                            button(
-                                onClick = dashboardClick,
-                                iconContent = { icon("ic_dashboard") },
-                                labelContent = { text("Dashboard".layoutString) },
-                                colors = ButtonDefaults.run { filledTonalButtonColors() }
-                            )
-                        },
-                        bottomSlot = {
-                            button(
-                                onClick = trainClick,
-                                iconContent = { icon("ic_pesa_gym") },
-                                labelContent = { text("Entrenar".layoutString) },
-                                colors = ButtonDefaults.run { filledButtonColors() }
-                            )
-                        }
-                    )
+                    LayoutElementBuilders.Box.Builder()
+                        .setWidth(DimensionBuilders.expand())
+                        .setHeight(DimensionBuilders.expand())
+                        .setModifiers(
+                            ModifiersBuilders.Modifiers.Builder()
+                                .setBackground(
+                                    ModifiersBuilders.Background.Builder()
+                                        .setColor(ColorBuilders.argb(0xFF000000.toInt()))
+                                        .build()
+                                )
+                                .build()
+                        )
+                        .addContent(
+                            LayoutElementBuilders.Row.Builder()
+                                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                                .addContent(
+                                    button(
+                                        onClick = dashboardClick,
+                                        iconContent = { icon("ic_dashboard") },
+                                        labelContent = { text("".layoutString) },
+                                        colors = ButtonDefaults.run { filledTonalButtonColors() }
+                                    )
+                                )
+                                .addContent(
+                                    LayoutElementBuilders.Spacer.Builder()
+                                        .setWidth(DimensionBuilders.dp(16f))
+                                        .build()
+                                )
+                                .addContent(
+                                    LayoutElementBuilders.Box.Builder()
+                                        .setWidth(DimensionBuilders.dp(2f))
+                                        .setHeight(DimensionBuilders.dp(40f))
+                                        .setModifiers(
+                                            ModifiersBuilders.Modifiers.Builder()
+                                                .setBackground(
+                                                    ModifiersBuilders.Background.Builder()
+                                                        .setColor(ColorBuilders.argb(0xFF333333.toInt()))
+                                                        .build()
+                                                )
+                                                .build()
+                                        )
+                                        .build()
+                                )
+                                .addContent(
+                                    LayoutElementBuilders.Spacer.Builder()
+                                        .setWidth(DimensionBuilders.dp(16f))
+                                        .build()
+                                )
+                                .addContent(
+                                    button(
+                                        onClick = trainClick,
+                                        iconContent = { icon("ic_pesa_gym") },
+                                        labelContent = { text("".layoutString) },
+                                        colors = ButtonDefaults.run { filledButtonColors() }
+                                    )
+                                )
+                                .build()
+                        )
+                        .build()
                 }
             )
         )

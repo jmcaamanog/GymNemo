@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -50,6 +51,8 @@ fun NumberPickerScreen(
     step: Int = 1,
     repsFor1Rm: Int? = null,
     suggestOverload: Boolean = false,
+    lastReps: Int? = null,
+    lastWeight: Float? = null,
     onValueSelected: (Int) -> Unit
 ) {
     var currentValue by remember { mutableIntStateOf(initialValue.coerceIn(range)) }
@@ -71,7 +74,7 @@ fun NumberPickerScreen(
         scaleTarget = 1f
     }
 
-    ScreenScaffold {
+    ScreenScaffold(timeText = {}) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -83,51 +86,57 @@ fun NumberPickerScreen(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .padding(top = 10.dp)
+                            .padding(top = 2.dp)
                             .graphicsLayer(scaleX = pickerScale, scaleY = pickerScale)
                     ) {
                         if (repsFor1Rm != null) {
-                            Box(
-                                modifier = Modifier
-                                    .size(74.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black)
-                                    .border(1.dp, Color.Gray.copy(alpha = 0.5f), CircleShape),
-                                contentAlignment = Alignment.Center
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
+                                // Fila 1: Repeticiones (solo número en cian, sin etiqueta)
+                                Text(
+                                    text = repsFor1Rm.toString(),
+                                    style = MaterialTheme.typography.displayMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFF00E5FF),
+                                    fontSize = 18.sp
+                                )
+                                
+                                // Fila 2: Peso actual (muy pegadito)
+                                Text(
+                                    text = "$currentValue kg",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    fontSize = 24.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.offset(y = (-2).dp)
+                                )
+
+                                // Fila 3: Anterior (muy pegadito debajo en plan R:xx // xx KG)
+                                if (lastReps != null && lastWeight != null) {
                                     Text(
-                                        text = "R: $repsFor1Rm",
+                                        text = "R:$lastReps // ${lastWeight.toInt()} KG",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color.Gray,
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "$currentValue kg",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White,
-                                        fontSize = 13.sp,
-                                        textAlign = TextAlign.Center
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(top = 1.dp)
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(2.dp))
+                            
+                            // 1RM y Sugerencia abajo pequeñito
                             val oneRepMax = currentValue * (1 + repsFor1Rm / 30.0)
                             Text(
                                 text = "1RM: ${oneRepMax.toInt()} kg",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF00E5FF),
+                                color = Color(0xFF00E5FF).copy(alpha = 0.8f),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 9.sp
+                                fontSize = 8.sp
                             )
                             if (suggestOverload) {
-                                Spacer(modifier = Modifier.height(1.dp))
                                 Text(
                                     text = "+2.5 KG SUGERIDO",
                                     style = MaterialTheme.typography.labelSmall,
@@ -183,7 +192,8 @@ fun NumberPickerScreen(
                     if (currentValue - step >= range.first) {
                         currentValue -= step
                     }
-                }
+                },
+                iconDistanceFactor = 0.68f
             )
 
             // Botón central OK verde circular

@@ -39,7 +39,7 @@ fun KcalPickerScreen(
         shouldRepeatOptions = false
     )
 
-    ScreenScaffold {
+    ScreenScaffold(timeText = {}) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

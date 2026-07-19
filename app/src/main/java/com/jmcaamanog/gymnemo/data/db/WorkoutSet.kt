@@ -19,6 +19,5 @@ data class WorkoutSet(
     val exerciseName: String,
     val weightKg: Float,
     val reps: Int,
-    val restSeconds: Int,
-    val tempo: String = "3-0-1-0"
+    val restSeconds: Int
 )

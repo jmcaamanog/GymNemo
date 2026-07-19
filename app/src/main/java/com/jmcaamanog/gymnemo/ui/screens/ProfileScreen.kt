@@ -24,7 +24,7 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    ScreenScaffold {
+    ScreenScaffold(timeText = {}) {
         RadialThreeButtons(
             topContent = {
                 Icon(

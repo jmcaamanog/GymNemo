@@ -19,7 +19,8 @@ import com.jmcaamanog.gymnemo.viewmodel.SettingsViewModel
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onSyncClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberTransformingLazyColumnState()
@@ -107,6 +108,25 @@ fun SettingsScreen(
                         text = "%02d:%02d".format(minutes, seconds),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            item {
+                ListHeader {
+                    Text("SINCRONIZAR")
+                }
+            }
+            item {
+                TitleCard(
+                    onClick = onSyncClick,
+                    title = { Text("Sincronizar Datos") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Forzar envío a móvil",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
             }

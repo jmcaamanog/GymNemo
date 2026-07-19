@@ -23,17 +23,10 @@ data class ActiveWorkoutState(
     val exerciseName: String = "",
     val bodyPart: String = "",
     val durationSeconds: Long = 0,
-    val heartRate: Int = 0,
-    val maxHeartRate: Int = 0,
-    val heartRateHistory: List<Int> = emptyList(),
-    val spo2: Int = 98,
-    val minSpO2: Int = 98,
     val isPaused: Boolean = false,
     val accumulatedKcal: Double = 0.0,
     val loggedSets: List<WorkoutSet> = emptyList(),
-    val averageHeartRate: Int = 0,
-    val birthYear: Int = 1995,
-    val currentTempo: String = "3-0-1-0"
+    val birthYear: Int = 1995
 )
 
 class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() {
@@ -114,20 +107,6 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
 
                         val updatedKcal = (state.accumulatedKcal + kcalBurnedPerSecond).coerceAtLeast(0.0)
 
-                        // Simulación de SpO2:
-                        var newSpo2 = state.spo2
-                        if (state.isPaused) {
-                            // Se recupera 1% cada 2 segundos en pausa
-                            if (state.spo2 < 98 && newDuration % 2 == 0L) {
-                                newSpo2 = state.spo2 + 1
-                            }
-                        } else {
-                            // En ejercicio se mantiene estable entre 95-98%
-                            if (newDuration % 10 == 0L) {
-                                newSpo2 = Random.nextInt(95, 99)
-                            }
-                        }
-
                         if (newDuration % 5 == 0L) {
                             viewModelScope.launch {
                                 repository.preferencesRepository.saveActiveWorkoutState(
@@ -142,9 +121,7 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
 
                         state.copy(
                             durationSeconds = newDuration,
-                            accumulatedKcal = updatedKcal,
-                            spo2 = newSpo2,
-                            minSpO2 = minOf(state.minSpO2, newSpo2)
+                            accumulatedKcal = updatedKcal
                         )
                     }
                 }
@@ -152,12 +129,21 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
         }
     }
 
+    var restStartTime: Long = 0L
+    
+    // Variables temporales para mostrar estadísticas en la pantalla de completado
+    var lastSessionDuration: Long = 0L
+    var lastSessionStart: Long = 0L
+    var lastSessionEnd: Long = 0L
+    var lastSessionKcal: Int = 0
+
     fun pauseWorkout() {
-        _workoutState.update { it.copy(isPaused = true, spo2 = 90) }
+        restStartTime = System.currentTimeMillis()
+        _workoutState.update { it.copy(isPaused = true) }
     }
 
     fun resumeWorkout() {
-        _workoutState.update { it.copy(isPaused = false, spo2 = 98) }
+        _workoutState.update { it.copy(isPaused = false) }
     }
 
     fun updateGpsTrack(pointsJson: String, avgSpeed: Float) {
@@ -172,14 +158,9 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
             exerciseName = state.exerciseName,
             weightKg = weight,
             reps = reps,
-            restSeconds = restSeconds,
-            tempo = state.currentTempo
+            restSeconds = restSeconds
         )
         _workoutState.update { it.copy(loggedSets = it.loggedSets + newSet) }
-    }
-
-    fun setCurrentTempo(tempo: String) {
-        _workoutState.update { it.copy(currentTempo = tempo) }
     }
 
     fun stopAndSaveWorkout(onComplete: () -> Unit) {
@@ -191,12 +172,17 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
                 val endTimestamp = System.currentTimeMillis()
                 val startTimestamp = endTimestamp - (state.durationSeconds * 1000)
 
+                // Guardar estadísticas para la pantalla de completado
+                lastSessionDuration = state.durationSeconds
+                lastSessionStart = startTimestamp
+                lastSessionEnd = endTimestamp
+                lastSessionKcal = state.accumulatedKcal.toInt()
+
                 val finalSession = WorkoutSession(
                     timestamp = startTimestamp,
                     endTimestamp = endTimestamp,
                     durationSeconds = state.durationSeconds,
                     totalKcal = state.accumulatedKcal.toInt(),
-                    minSpO2 = state.minSpO2,
                     bodyPart = state.bodyPart
                 )
 
@@ -209,12 +195,20 @@ class WorkoutViewModel(private val repository: WorkoutRepository) : ViewModel() 
         }
     }
 
+    suspend fun syncUnsyncedSessions(): Int {
+        return repository.syncUnsyncedSessions()
+    }
+
     suspend fun getLastWeightForExercise(exerciseName: String): Float {
         val currentSet = _workoutState.value.loggedSets.lastOrNull { it.exerciseName == exerciseName }
         if (currentSet != null) {
             return currentSet.weightKg
         }
         return repository.getLastWeightForExercise(exerciseName)
+    }
+
+    suspend fun getLastSetsForExercise(exerciseName: String): List<WorkoutSet> {
+        return repository.getLastSetsForExercise(exerciseName)
     }
 
     suspend fun shouldSuggestOverload(exerciseName: String): Boolean {

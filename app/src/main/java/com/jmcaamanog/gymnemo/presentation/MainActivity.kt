@@ -1,6 +1,7 @@
 package com.jmcaamanog.gymnemo.presentation
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.background
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Icon
@@ -45,6 +47,8 @@ import android.graphics.drawable.AnimatedImageDrawable
 import android.widget.ImageView
 import com.jmcaamanog.gymnemo.data.datastore.UserPreferencesRepository
 import com.jmcaamanog.gymnemo.data.db.GymNemoDatabase
+import com.jmcaamanog.gymnemo.data.db.WorkoutSet
+import com.jmcaamanog.gymnemo.data.db.WorkoutSession
 import com.jmcaamanog.gymnemo.data.repository.WorkoutRepository
 import com.jmcaamanog.gymnemo.presentation.theme.GymNemoTheme
 import com.jmcaamanog.gymnemo.ui.components.RadialThreeButtons
@@ -72,6 +76,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.Wifi
+import android.widget.Toast
 import com.jmcaamanog.gymnemo.ui.screens.LogSetScreen
 import com.jmcaamanog.gymnemo.ui.screens.DashboardScreen
 import com.jmcaamanog.gymnemo.ui.screens.WorkoutPauseScreen
@@ -95,6 +101,9 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
         
         // Attach Ambient Mode
         AmbientModeSupport.attach(this)
+        
+        // Evitar que la pantalla se apague durante el entrenamiento
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Request GPS Location Permissions
         val permissions = arrayOf(
@@ -109,6 +118,25 @@ class MainActivity : FragmentActivity(), AmbientModeSupport.AmbientCallbackProvi
         val prefRepository = UserPreferencesRepository(applicationContext)
         val workoutRepository = WorkoutRepository(applicationContext, db.workoutDao(), prefRepository)
         val factory = ViewModelFactory(workoutRepository)
+
+        // Registrar listener para recibir solicitudes de sincronización desde el móvil
+        val messageClient = com.google.android.gms.wearable.Wearable.getMessageClient(this)
+        messageClient.addListener { event ->
+            if (event.path == "/request_sync") {
+                this@MainActivity.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val count = workoutRepository.syncUnsyncedSessions()
+                    try {
+                        val nodeClient = com.google.android.gms.wearable.Wearable.getNodeClient(this@MainActivity)
+                        val nodes = com.google.android.gms.tasks.Tasks.await(nodeClient.connectedNodes)
+                        nodes.forEach { node ->
+                            messageClient.sendMessage(node.id, "/sync_result", "$count".toByteArray())
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
 
         val startScreen = intent.getStringExtra("startScreen") ?: "main"
         setContent {
@@ -291,8 +319,20 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         onTopClick = { navController.navigate("dashboard") },
                         bottomRightContent = { Icon(Icons.Default.TrackChanges, null, Modifier.fillMaxSize(0.5f), tint = Color.White) },
                         onBottomRightClick = { navController.navigate("pr_category") },
-                        bottomLeftContent = { Icon(Icons.Default.ArrowBack, null, Modifier.fillMaxSize(0.5f), tint = Color.White) },
-                        onBottomLeftClick = { navController.popBackStack() }
+                        bottomLeftContent = { Icon(Icons.Default.Wifi, null, Modifier.fillMaxSize(0.5f), tint = Color(0xFF00E5FF)) },
+                        onBottomLeftClick = {
+                            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+                            scope.launch {
+                                val count = workoutViewModel.syncUnsyncedSessions()
+                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                    if (count > 0) {
+                                        Toast.makeText(context, "Sincronizado: $count entrenos", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Sincronización al día", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        }
                     )
                 }
                 composable("pr_category") {
@@ -392,11 +432,15 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                     )
                 }
                 composable("pause_screen") {
+                    val state = workoutViewModel.workoutState.collectAsState().value
                     WorkoutPauseScreen(
                         viewModel = workoutViewModel,
                         isAmbientMode = isAmbientMode,
                         onRepeatClick = {
-                            navController.navigate("log_reps/repeat")
+                            workoutViewModel.resumeWorkout()
+                            navController.navigate("countdown") {
+                                popUpTo("active_workout") { inclusive = false }
+                            }
                         },
                         onRepeatLongClick = {
                             workoutViewModel.resumeWorkout()
@@ -404,10 +448,15 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         },
                         onNewSetClick = {
                             workoutViewModel.resumeWorkout()
-                            navController.navigate("countdown")
+                            navController.navigate("main") {
+                                popUpTo("main") { inclusive = true }
+                            }
+                        },
+                        onCenterTimerClick = {
+                            navController.navigate("log_reps/rest")
                         },
                         onFinishClick = {
-                            navController.navigate("log_reps/finish")
+                            navController.navigate("confirm_end")
                         }
                     )
                 }
@@ -437,6 +486,10 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         value = workoutViewModel.shouldSuggestOverload(exerciseName)
                     }
 
+                    val lastSetState = produceState<WorkoutSet?>(initialValue = null as WorkoutSet?, exerciseName) {
+                        value = workoutViewModel.getLastSetsForExercise(exerciseName).firstOrNull()
+                    }
+
                     NumberPickerScreen(
                         label = "KG",
                         initialValue = lastWeightState.value.toInt(),
@@ -444,10 +497,15 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                         step = 1,
                         repsFor1Rm = reps,
                         suggestOverload = suggestOverloadState.value,
+                        lastReps = lastSetState.value?.reps,
+                        lastWeight = lastSetState.value?.weightKg,
                         onValueSelected = { weight ->
                             workoutViewModel.logSet(weight.toFloat(), reps)
                             when (action) {
                                 "repeat" -> {
+                                    navController.popBackStack("pause_screen", false)
+                                }
+                                "rest" -> {
                                     navController.popBackStack("pause_screen", false)
                                 }
                                 "change" -> {
@@ -465,6 +523,54 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                             }
                         }
                     )
+                }
+                composable("confirm_end") {
+                    val haptic = LocalHapticFeedback.current
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            androidx.wear.compose.material3.Text(
+                                text = "¿SEGURO TERMINAR\nENTRENAMIENTO?",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                textAlign = TextAlign.Center,
+                                fontSize = 13.sp
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFF007F))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                                        workoutViewModel.stopAndSaveWorkout {
+                                            navController.navigate("workout_complete") {
+                                                popUpTo("main") { inclusive = false }
+                                            }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                androidx.wear.compose.material3.Text(
+                                    text = "END",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.Black,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
                 }
                 composable("workout_complete") {
                     WorkoutCompleteScreen(
@@ -641,7 +747,8 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                 }
                 composable("easter_egg") {
                     val context = LocalContext.current
-                    var updateStatus by remember { mutableStateOf("Buscar Actualización") }
+                    val coroutineScope = rememberCoroutineScope()
+                    var updateStatus by remember { mutableStateOf("Actualizar") }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -677,17 +784,40 @@ fun GymNemoApp(factory: ViewModelFactory, prefRepository: UserPreferencesReposit
                             Text("¡Cuidado con la hipoxia y dale caña al hierro! 🏋️‍♂️💀", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFF007F), fontSize = 8.sp, textAlign = TextAlign.Center)
                             Text("Copyright © 2026 jmcaamanog", style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontSize = 7.sp)
                             Spacer(modifier = Modifier.height(4.dp))
-                            androidx.wear.compose.material3.Button(
-                                onClick = {
-                                    updateStatus = "Comprobando..."
-                                    checkAppUpdate(context) { version, url ->
-                                        updateStatus = "Nueva v$version en GitHub"
-                                    }
-                                },
-                                modifier = Modifier.height(24.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                            
+                            androidx.compose.foundation.layout.Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(updateStatus, fontSize = 8.sp)
+                                androidx.wear.compose.material3.Button(
+                                    onClick = {
+                                        updateStatus = "Buscando..."
+                                        checkAppUpdate(context) { version, url ->
+                                            updateStatus = "v$version!"
+                                        }
+                                    },
+                                    modifier = Modifier.height(24.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                                ) {
+                                    Text(updateStatus, fontSize = 8.sp)
+                                }
+
+                                var syncStatus by remember { mutableStateOf("Sincronizar") }
+                                androidx.wear.compose.material3.Button(
+                                    onClick = {
+                                        syncStatus = "Enviando..."
+                                        coroutineScope.launch {
+                                            val count = workoutViewModel.syncUnsyncedSessions()
+                                            syncStatus = if (count > 0) "Enviado: $count" else "Al día"
+                                            delay(2000)
+                                            syncStatus = "Sincronizar"
+                                        }
+                                    },
+                                    modifier = Modifier.height(24.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black)
+                                ) {
+                                    Text(syncStatus, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

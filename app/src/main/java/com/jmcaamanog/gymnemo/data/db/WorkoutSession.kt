@@ -10,7 +10,6 @@ data class WorkoutSession(
     val endTimestamp: Long = 0,
     val durationSeconds: Long,
     val totalKcal: Int,
-    val minSpO2: Int = 98,
     val bodyPart: String, // "brazo", "pierna", "torso"
     val synced: Boolean = false
 )

@@ -28,12 +28,13 @@ fun RadialThreeButtons(
     modifier: Modifier = Modifier,
     onTopLongClick: (() -> Unit)? = null,
     onBottomLeftLongClick: (() -> Unit)? = null,
-    onBottomRightLongClick: (() -> Unit)? = null
+    onBottomRightLongClick: (() -> Unit)? = null,
+    iconDistanceFactor: Float = 0.55f
 ) {
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val radius = screenWidth / 2
     // Distancia del centro al icono para que esté equilibrado visualmente
-    val iconDistance = radius * 0.55f 
+    val iconDistance = radius * iconDistanceFactor 
 
     Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
         // Líneas divisorias (Estilo "Y")

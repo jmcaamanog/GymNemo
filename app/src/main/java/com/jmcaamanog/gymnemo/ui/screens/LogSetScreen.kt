@@ -46,7 +46,7 @@ fun LogSetScreen(
         shouldRepeatOptions = false
     )
 
-    ScreenScaffold {
+    ScreenScaffold(timeText = {}) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
