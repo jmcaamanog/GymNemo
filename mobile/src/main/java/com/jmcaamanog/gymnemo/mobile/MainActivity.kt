@@ -1522,7 +1522,7 @@ fun RespaldoTab(db: WorkoutDb) {
         // Card de Integración con Google Sheets
         item {
             val sheetsPrefs = remember { context.getSharedPreferences("google_sheets_prefs", android.content.Context.MODE_PRIVATE) }
-            val defaultUrl = "https://script.google.com/macros/s/AKfycbwASXMQJjYm5ge6L9w34mU5fr5fByC-Nrf9l1Iwtj-C8YcENW78a_4xBrpPV02N8ZdJ/exec"
+            val defaultUrl = ""
             var sheetsUrl by remember { mutableStateOf(sheetsPrefs.getString("sheets_url", defaultUrl) ?: defaultUrl) }
 
             Card(

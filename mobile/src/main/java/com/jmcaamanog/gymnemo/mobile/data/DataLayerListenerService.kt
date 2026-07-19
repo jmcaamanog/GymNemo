@@ -131,7 +131,7 @@ class DataLayerListenerService : WearableListenerService() {
 
 fun sendWorkoutToGoogleSheets(context: Context, session: WorkoutSessionEntity, sets: List<WorkoutSetEntity>) {
     val prefs = context.getSharedPreferences("google_sheets_prefs", Context.MODE_PRIVATE)
-    val defaultUrl = "https://script.google.com/macros/s/AKfycbwASXMQJjYm5ge6L9w34mU5fr5fByC-Nrf9l1Iwtj-C8YcENW78a_4xBrpPV02N8ZdJ/exec"
+    val defaultUrl = ""
     val urlStr = prefs.getString("sheets_url", defaultUrl) ?: defaultUrl
     if (urlStr.isBlank()) return
 
