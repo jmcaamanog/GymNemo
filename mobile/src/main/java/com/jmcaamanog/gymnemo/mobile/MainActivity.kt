@@ -2073,11 +2073,14 @@ fun AjustesTab(context: android.content.Context) {
                     Text("GymNemo comprueba actualizaciones en GitHub releases.", fontSize = 12.sp, color = Color.Gray)
                     
                     var updateStatus by remember { mutableStateOf("Buscar Actualización") }
+                    val updateScope = rememberCoroutineScope()
                     Button(
                         onClick = {
                             updateStatus = "Comprobando..."
-                            checkAppUpdate(context) { version, _ ->
-                                updateStatus = "¡Nueva versión v$version disponible!"
+                            updateScope.launch {
+                                checkAppUpdateSuspend(context) { status ->
+                                    updateStatus = status
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray, contentColor = Color.White),
@@ -2114,26 +2117,52 @@ fun syncCustomExercisesToWatch(context: android.content.Context) {
 
 fun checkAppUpdate(context: android.content.Context, onUpdateAvailable: (String, String) -> Unit) {
     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        checkAppUpdateSuspend(context) { status ->
+            if (status.startsWith("¡Nueva")) {
+                val version = status.removePrefix("¡Nueva versión v").removeSuffix(" disponible!")
+                onUpdateAvailable(version, "")
+            }
+        }
+    }
+}
+
+suspend fun checkAppUpdateSuspend(
+    context: android.content.Context,
+    onResult: suspend (String) -> Unit
+) {
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         try {
             val url = java.net.URL("https://api.github.com/repos/jmcaamanog/GymNemo/releases/latest")
             val connection = url.openConnection() as java.net.HttpURLConnection
             connection.requestMethod = "GET"
+            connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
             connection.connect()
             if (connection.responseCode == 200) {
                 val text = connection.inputStream.bufferedReader().use { it.readText() }
                 val json = org.json.JSONObject(text)
-                val remoteVersion = json.getString("tag_name").replace("v", "")
-                val assets = json.getJSONArray("assets")
-                val downloadUrl = if (assets.length() > 0) assets.getJSONObject(0).getString("browser_download_url") else ""
-                val localVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                if (remoteVersion != localVersion) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        onUpdateAvailable(remoteVersion, downloadUrl)
-                    }
+                val remoteVersion = json.getString("tag_name").trimStart('v')
+                val localVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0"
+                val result = if (remoteVersion != localVersion) {
+                    "¡Nueva versión v$remoteVersion disponible!"
+                } else {
+                    "✓ Ya tienes la última versión ($localVersion)"
+                }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onResult(result)
+                }
+            } else {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onResult("Error de red (${connection.responseCode})")
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                onResult("Sin conexión: ${e.localizedMessage?.take(40)}")
+            }
         }
     }
 }
+
