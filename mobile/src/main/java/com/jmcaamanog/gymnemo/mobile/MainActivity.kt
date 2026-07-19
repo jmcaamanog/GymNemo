@@ -342,22 +342,9 @@ fun SessionCard(session: WorkoutSessionEntity, sets: List<WorkoutSetEntity>) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text("Pulsaciones Max", fontSize = 10.sp, color = Color.Gray)
-                            Text("${session.maxHeartRate} BPM", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Column {
                             Text("Oxígeno Mín (SpO2)", fontSize = 10.sp, color = Color.Gray)
                             val spo2Color = if (session.minSpO2 < 92) Color(0xFF00E5FF) else Color.White
                             Text("${session.minSpO2}%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = spo2Color)
-                        }
-                        Column {
-                            Text("Recup. Cardíaca (HRR)", fontSize = 10.sp, color = Color.Gray)
-                            val recoveryCatalog = when {
-                                session.heartRateRecoveryDrop >= 20 -> "EXCELENTE"
-                                session.heartRateRecoveryDrop >= 15 -> "BUENA"
-                                else -> "MEJORABLE"
-                            }
-                            Text("-${session.heartRateRecoveryDrop} BPM ($recoveryCatalog)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF39FF14))
                         }
                     }
 
@@ -1065,7 +1052,7 @@ fun ObjetivosTab(sessions: List<WorkoutSessionEntity>) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "${s.totalKcal} kcal | HR recovery: ${s.heartRateRecoveryDrop} BPM",
+                                        text = "${s.totalKcal} kcal",
                                         color = Color.LightGray,
                                         fontSize = 10.sp
                                     )
