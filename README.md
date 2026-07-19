@@ -14,16 +14,6 @@
 
 ---
 
-<p align="center">
-  <a href="https://github.com/jmcaamanog/GymNemo/releases/latest"><img src="https://img.shields.io/github/v/release/jmcaamanog/GymNemo?label=Version&color=00e5ff&logo=github" alt="Versión"></a>
-  <a href="https://github.com/jmcaamanog/GymNemo/stargazers"><img src="https://img.shields.io/github/stars/jmcaamanog/GymNemo?style=flat&label=Stars&color=ff007f&logo=github" alt="Stars"></a>
-  <a href="https://github.com/jmcaamanog/GymNemo/blob/main/LICENSE"><img src="https://img.shields.io/badge/Licencia-MIT-8b5cf6.svg" alt="Licencia"></a>
-  <a href="https://jmcaamanog.github.io/GymNemo/landing.html"><img src="https://img.shields.io/badge/Plataforma-Wear%20OS%20%7C%20Android-39ff14" alt="Plataformas"></a>
-  <a href="https://www.linkedin.com/in/jmcaamanog/"><img src="https://img.shields.io/badge/Profesi%C3%B3n-Arquitectos%20T%C3%A9cnicos-2e7d32?logo=micro%3Abit&logoColor=white" alt="Profesión"></a>
-</p>
-
----
-
 ## ⚡ Descarga Rápida (v2.5.0)
 
 > [!IMPORTANT]
