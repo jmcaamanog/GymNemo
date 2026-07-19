@@ -444,6 +444,7 @@ fun HistorialTab(sessions: List<WorkoutSessionEntity>, allSets: List<WorkoutSetE
                                     return@Button
                                 }
                                 coroutineScope.launch(Dispatchers.IO) {
+                                    val db = WorkoutDb.getDatabase(contextForSave)
                                     val now = System.currentTimeMillis()
                                     val sessionId = db.workoutDao().insertSession(
                                         WorkoutSessionEntity(
